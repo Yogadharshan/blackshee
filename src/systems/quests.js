@@ -15,6 +15,7 @@ export function createQuestState() {
     signPokes: 0,
     hiddenFound: false,
     side: { flowers: 'idle', friend: 'idle', rock: 'idle' },
+    sealAnnounced: false,
   };
 }
 

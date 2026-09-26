@@ -9,6 +9,7 @@ import { drawDialogueBox } from './ui/dialogue_box.js';
 import { drawEnding } from './ui/ending.js';
 import { TILE, START } from './data/world.js';
 import { DIALOGUE } from './data/dialogue.js';
+import { sfx, ensureAudio } from './systems/sfx.js';
 
 const HOTSPOT_COLORS = {
   memory: '#f2c14e',
@@ -38,6 +39,7 @@ export class Game {
 
   attachInput() {
     window.addEventListener('keydown', (e) => {
+      ensureAudio();
       if (e.code === 'KeyE' || e.code === 'Enter' || e.code === 'Space') {
         if (!this.keys[e.code]) this.advance = true;
       }
@@ -54,6 +56,15 @@ export class Game {
 
   say(pairs, onDone) {
     this.dialogue.start(pairs, onDone);
+  }
+
+  // One-time world beat when the 5th Memory lands.
+  maybeAnnounceSeal() {
+    if (this.q.memories >= this.q.required && !this.q.sealAnnounced) {
+      this.q.sealAnnounced = true;
+      sfx.open();
+      this.say([['', 'A low hum fills the world. The seal on the Old Shrine is gone.']]);
+    }
   }
 
   update(dt) {
@@ -74,7 +85,7 @@ export class Game {
     const pressed = this.advance;
     this.advance = false;
     if (this.dialogue.active) {
-      if (pressed) this.dialogue.advance();
+      if (pressed) { sfx.advance(); this.dialogue.advance(); }
       return;
     }
 
@@ -107,9 +118,22 @@ export class Game {
     if (pressed && this.near) {
       if (this.near.type === 'npc') {
         const npc = this.near.ref;
-        this.say(talkFor(npc.id, this.q), () => rewardFor(npc.id, this.q));
+        this.say(talkFor(npc.id, this.q), () => {
+          rewardFor(npc.id, this.q);
+          this.maybeAnnounceSeal();
+        });
       } else {
+        const wasActive = this.dialogue.active;
         handleHotspot(this, this.near.ref);
+        if (this.dialogue.active && !wasActive) {
+          const prev = this.dialogue.onDone;
+          this.dialogue.onDone = () => {
+            if (prev) prev();
+            this.maybeAnnounceSeal();
+          };
+        } else if (!wasActive) {
+          this.maybeAnnounceSeal();
+        }
       }
     }
   }
