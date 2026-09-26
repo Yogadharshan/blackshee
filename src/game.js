@@ -34,13 +34,46 @@ export class Game {
       : 'p' + Math.random().toString(36).slice(2);
     this.others = new Map();       // id -> { x, y, dir, mounted }
     this.sendTimer = 0;
+    this.roomUI = { active: false, code: '', joined: false };
+    this.roomCode = '';
     net.init((players) => this.syncPlayers(players));
+    this.roomCode = net.room || this.roomCode;
     this.attachInput();
   }
 
   attachInput() {
     window.addEventListener('keydown', (e) => {
       ensureAudio();
+
+      // Room-code entry on the title screen.
+      if (this.mode === 'title' && this.roomUI.active) {
+        e.preventDefault();
+        if (e.key === 'Escape') {
+          this.roomUI.active = false;
+        } else if (e.key === 'Enter') {
+          if (this.roomUI.code.length > 0 && !this.roomUI.joined) {
+            this.roomUI.joined = true;
+            this.roomUI.active = false;
+            this.roomCode = this.roomUI.code;
+            net.join(this.roomCode);
+            sfx.done();
+          }
+        } else if (e.key === 'Backspace') {
+          this.roomUI.code = this.roomUI.code.slice(0, -1);
+        } else if (e.key.length === 1 && /[a-zA-Z0-9]/.test(e.key)) {
+          this.roomUI.code = (this.roomUI.code + e.key.toUpperCase()).slice(0, 12);
+        }
+        return;
+      }
+
+      if (e.code === 'KeyC' && !e.repeat && this.mode === 'title' && !this.roomUI.active) {
+        e.preventDefault();
+        this.roomUI.active = true;
+        this.roomUI.code = this.roomCode;
+        this.roomUI.joined = false;
+        return;
+      }
+
       if (e.code === 'KeyE' || e.code === 'Enter' || e.code === 'Space') {
         if (!this.keys[e.code]) this.advance = true;
       }
@@ -294,12 +327,59 @@ export class Game {
     ctx.fillText('The only black sheep in a world of white ones.', 480, 444);
     ctx.fillStyle = '#8f97a5';
     ctx.font = '13px "Courier New", monospace';
-    ctx.fillText('Collect the five Memories. Help a few weird sheep. Press Enter to begin.', 480, 480);
+    ctx.fillText('Collect the five Memories. Help a few weird sheep.', 480, 470);
     ctx.fillStyle = '#f2e9c9';
     ctx.font = 'bold 15px "Courier New", monospace';
-    ctx.fillText('[Enter]', 480, 532);
+    ctx.fillText('[Enter]  Solo  ·  [C]  Co-op room', 480, 508);
+    if (this.roomUI.active) drawRoomInput(ctx, this.roomUI);
+    else if (this.roomUI.joined) {
+      ctx.fillStyle = '#7fa66a';
+      ctx.font = '14px "Courier New", monospace';
+      ctx.fillText(`Joined room ${this.roomCode} — friend types the same code.`, 480, 538);
+      ctx.fillStyle = '#f2e9c9';
+      ctx.font = 'bold 14px "Courier New", monospace';
+      ctx.fillText('[Enter] begin', 480, 566);
+    }
     ctx.textAlign = 'left';
   }
+}
+
+// Room-code entry overlay on the title screen.
+function drawRoomInput(ctx, ui) {
+  ctx.fillStyle = 'rgba(16,18,22,0.95)';
+  ctx.fillRect(240, 200, 480, 240);
+  ctx.strokeStyle = '#c9b46a';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(242, 202, 476, 236);
+  ctx.fillStyle = '#c9b46a';
+  ctx.fillRect(240, 200, 8, 8);
+  ctx.fillRect(712, 200, 8, 8);
+  ctx.fillRect(240, 432, 8, 8);
+  ctx.fillRect(712, 432, 8, 8);
+
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#f2e9c9';
+  ctx.font = 'bold 16px "Courier New", monospace';
+  ctx.fillText('CO-OP ROOM', 480, 232);
+  ctx.fillStyle = '#9aa0a8';
+  ctx.font = '13px "Courier New", monospace';
+  ctx.fillText('Type a code. A friend types the same one in', 480, 258);
+  ctx.fillText('another browser. Both sheep appear together.', 480, 276);
+
+  // input box
+  ctx.fillStyle = '#10141a';
+  ctx.fillRect(300, 300, 360, 40);
+  ctx.strokeStyle = '#e8b83e';
+  ctx.strokeRect(300, 300, 360, 40);
+  const caret = Math.floor(performance.now() / 500) % 2 === 0 ? '_' : ' ';
+  ctx.fillStyle = '#f2f2f2';
+  ctx.font = 'bold 22px "Courier New", monospace';
+  ctx.fillText((ui.code + caret).padEnd(12, '·'), 480, 329);
+
+  ctx.fillStyle = '#f2e9c9';
+  ctx.font = 'bold 13px "Courier New", monospace';
+  ctx.fillText('[Enter] join   [Esc] back', 480, 372);
+  ctx.textAlign = 'left';
 }
 
 // Small orbiting sparkle for collectibles.

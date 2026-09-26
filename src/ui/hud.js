@@ -46,6 +46,14 @@ export function drawHud(ctx, game) {
     ctx.fillText('Press M to mount', 582, 60);
   }
 
+  // Room chip (co-op)
+  if (game.roomCode) {
+    panel(ctx, 10, 594, 130, 26);
+    ctx.fillStyle = '#7fa66a';
+    ctx.font = 'bold 12px "Courier New", monospace';
+    ctx.fillText(`ROOM ${game.roomCode}`, 22, 612);
+  }
+
   // Interact hint
   if (game.near && !game.dialogue.active) {
     panel(ctx, 350, 596, 150, 30);
