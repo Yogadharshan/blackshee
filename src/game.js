@@ -47,19 +47,15 @@ export class Game {
     window.addEventListener('keydown', (e) => {
       ensureAudio();
 
-      // Room-code entry on the title screen.
+      // Room-code entry on the title screen. G = create a fresh code and join.
       if (this.mode === 'title' && this.roomUI.active) {
         e.preventDefault();
         if (e.key === 'Escape') {
           this.roomUI.active = false;
         } else if (e.key === 'Enter') {
-          if (this.roomUI.code.length > 0 && !this.roomUI.joined) {
-            this.roomUI.joined = true;
-            this.roomUI.active = false;
-            this.roomCode = this.roomUI.code;
-            net.join(this.roomCode);
-            sfx.done();
-          }
+          this.joinRoom(this.roomUI.code);
+        } else if (e.key === 'g' || e.key === 'G') {
+          this.joinRoom(newRoomCode());
         } else if (e.key === 'Backspace') {
           this.roomUI.code = this.roomUI.code.slice(0, -1);
         } else if (e.key.length === 1 && /[a-zA-Z0-9]/.test(e.key)) {
@@ -101,6 +97,16 @@ export class Game {
     this.mounted = !this.mounted;
     this.player.speed = this.mounted ? 300 : 170;
     this.player.moving = false;
+    sfx.done();
+  }
+
+  // Join (or create) a co-op room with the given code. Create = fresh code, room auto-appears.
+  joinRoom(code) {
+    if (!code) return;
+    this.roomUI.joined = true;
+    this.roomUI.active = false;
+    this.roomCode = code;
+    net.join(code);
     sfx.done();
   }
 
@@ -394,8 +400,8 @@ function drawRoomInput(ctx, ui) {
   ctx.fillText('CO-OP ROOM', 480, 232);
   ctx.fillStyle = '#9aa0a8';
   ctx.font = '13px "Courier New", monospace';
-  ctx.fillText('Type a code. A friend types the same one in', 480, 258);
-  ctx.fillText('another browser. Both sheep appear together.', 480, 276);
+  ctx.fillText('Type a friend\'s code to join — or press [G]', 480, 258);
+  ctx.fillText('to create a fresh room code.', 480, 276);
 
   // input box
   ctx.fillStyle = '#10141a';
@@ -409,8 +415,16 @@ function drawRoomInput(ctx, ui) {
 
   ctx.fillStyle = '#f2e9c9';
   ctx.font = 'bold 13px "Courier New", monospace';
-  ctx.fillText('[Enter] join   [Esc] back', 480, 372);
+  ctx.fillText('[Enter] join   [G] new code   [Esc] back', 480, 372);
   ctx.textAlign = 'left';
+}
+
+// Fresh room code for the "create a room" path (no confusing 0/O, 1/I).
+function newRoomCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let out = '';
+  for (let i = 0; i < 5; i++) out += chars[Math.floor(Math.random() * chars.length)];
+  return out;
 }
 
 // Small orbiting sparkle for collectibles.

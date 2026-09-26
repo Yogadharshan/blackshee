@@ -91,6 +91,10 @@ check(g.q.memories === 4, 'bell = memory 4');
 teleport('village', 14, 9);
 g.advance = true; g.update(1 / 60); finishDialogue();
 check(g.q.elderTalked, 'elder talk sets elderTalked');
+
+// ROOM UI: create-a-room path
+g.joinRoom('XYZQP');
+check(g.roomCode === 'XYZQP' && g.roomUI.joined, 'room code created/joined via UI');
 teleport('village', 1, 8); g.update(1 / 60); // village > farm
 teleport('farm', 12, 11);
 g.advance = true; g.update(1 / 60); finishDialogue();
