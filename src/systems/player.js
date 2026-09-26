@@ -1,5 +1,6 @@
 import { TILE } from '../data/world.js';
 import { rectBlocked } from './collision.js';
+import { sprites, spr, sheepPose } from './sprites.js';
 
 export class Player {
   constructor(startX, startY) {
@@ -9,6 +10,7 @@ export class Player {
     this.h = 30;
     this.speed = 170;
     this.dir = { x: 0, y: 1 };
+    this.moving = false;
   }
 
   get cx() { return this.x + this.w / 2; }
@@ -24,6 +26,9 @@ export class Player {
       const len = Math.hypot(dx, dy);
       dx /= len; dy /= len;
       this.dir = { x: dx, y: dy };
+      this.moving = true;
+    } else {
+      this.moving = false;
     }
     const step = this.speed * dt;
 
@@ -44,45 +49,17 @@ export class Player {
   }
 
   draw(ctx) {
-    const fluffy = wobble();
-    // black wool body
-    ctx.fillStyle = '#2b2b33';
-    ctx.beginPath();
-    ctx.ellipse(this.cx, this.cy + 2, this.w / 2 + fluffy, this.h / 2 - 2, 0, 0, Math.PI * 2);
-    ctx.fill();
-    // darker legs
-    ctx.fillStyle = '#1c1c22';
-    ctx.fillRect(this.cx - 10, this.cy + 8, 5, 8);
-    ctx.fillRect(this.cx + 5, this.cy + 8, 5, 8);
-    // head (faces move direction)
-    const hx = this.cx + this.dir.x * 6;
-    const hy = this.cy + this.dir.y * 6;
-    ctx.fillStyle = '#33333d';
-    ctx.beginPath();
-    ctx.arc(hx, hy, 8, 0, Math.PI * 2);
-    ctx.fill();
-    // ears
-    ctx.fillStyle = '#2b2b33';
-    ctx.beginPath();
-    ctx.ellipse(hx - 9, hy - 3, 4, 3, -0.6, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.ellipse(hx + 9, hy - 3, 4, 3, 0.6, 0, Math.PI * 2);
-    ctx.fill();
-    // eyes
-    ctx.fillStyle = '#f2f2f2';
-    ctx.beginPath();
-    ctx.arc(hx - 3, hy - 1, 1.8, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.arc(hx + 3, hy - 1, 1.8, 0, Math.PI * 2);
-    ctx.fill();
+    const t = performance.now();
+    const s = sprites().sheepBlack;
+    const { img, bob } = sheepPose(s, this.moving, t);
+    const flip = this.dir.x < 0;
+    const ix = this.x + (this.w - img.width) / 2;
+    const iy = this.y + this.h - img.height + bob - 3;
+    // soft ground shadow
+    ctx.fillStyle = 'rgba(30,20,10,0.25)';
+    ctx.fillRect(this.x + 4, this.y + this.h - 4, this.w - 8, 5);
+    spr(ctx, img, ix, iy, flip);
   }
-}
-
-// Gentle idle breathing so sheep feel alive.
-function wobble() {
-  return Math.sin(Date.now() / 500) * 0.8;
 }
 
 function hitsAny(actors, rect) {

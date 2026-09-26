@@ -10,15 +10,7 @@ import { drawEnding } from './ui/ending.js';
 import { TILE, START } from './data/world.js';
 import { DIALOGUE } from './data/dialogue.js';
 import { sfx, ensureAudio } from './systems/sfx.js';
-
-const HOTSPOT_COLORS = {
-  memory: '#f2c14e',
-  flower: '#e86a92',
-  rock: '#9a9a9a',
-  altar: '#c9b458',
-  bo: '#f5f2e8',
-  secret: '#bfe5f0',
-};
+import { sprites, spr, sheepPose, memorySprite, envSprites, rockSprite } from './systems/sprites.js';
 
 export class Game {
   constructor(ctx) {
@@ -144,7 +136,7 @@ export class Game {
     ctx.fillStyle = '#7ea54e';
     ctx.fillRect(0, 0, 960, 640);
 
-    this.world.draw(ctx);
+    this.world.draw(ctx, this);
 
     // Hotspots.
     for (const hs of this.world.hotspots) {
@@ -153,7 +145,7 @@ export class Game {
 
     // NPCs.
     for (const n of this.world.npcs) {
-      drawSheep(ctx, n.px + 20, n.py + 20, false, 0, 0);
+      drawSheep(ctx, n.px + 20, n.py + 20, false);
       if (this.near && this.near.type === 'npc' && this.near.ref === n) {
         ctx.fillStyle = '#f2e9c9';
         ctx.font = 'bold 12px "Courier New", monospace';
@@ -176,94 +168,116 @@ export class Game {
   }
 
   drawHotspot(ctx, hs) {
-    const c = HOTSPOT_COLORS[hs.kind] || '#fff';
-    const pulse = 1 + Math.sin(performance.now() / 300 + hs.id.length) * 0.15;
+    const t = performance.now();
     const px = hs.px + 20;
     const py = hs.py + 20;
-    if (hs.kind === 'memory' || hs.kind === 'secret') {
-      ctx.save();
-      ctx.translate(px, py);
-      ctx.scale(pulse, pulse);
-      ctx.fillStyle = c;
-      ctx.beginPath();
-      ctx.moveTo(0, -10); ctx.lineTo(8, 0); ctx.lineTo(0, 10); ctx.lineTo(-8, 0);
-      ctx.closePath(); ctx.fill();
-      ctx.restore();
+    if (hs.kind === 'memory') {
+      const img = memorySprite(hs.item);
+      const bob = Math.round(Math.sin(t / 320 + hs.x * 2) * 2);
+      ctx.fillStyle = 'rgba(30,20,10,0.22)';
+      ctx.fillRect(px - 11, py + 13, 22, 4);
+      // floating sparkle platform
+      ctx.fillStyle = 'rgba(242,193,78,0.35)';
+      ctx.fillRect(px - 9, py + 10 + bob, 18, 2);
+      spr(ctx, img, px - img.width / 2, py - img.height / 2 + bob - 4);
+      sparkle(ctx, px, py - 16 + bob, t);
     } else if (hs.kind === 'flower') {
-      ctx.fillStyle = '#e86a92';
-      ctx.beginPath(); ctx.arc(px - 4, py, 5, 0, Math.PI * 2); ctx.fill();
-      ctx.beginPath(); ctx.arc(px + 4, py, 5, 0, Math.PI * 2); ctx.fill();
-      ctx.beginPath(); ctx.arc(px, py - 4, 5, 0, Math.PI * 2); ctx.fill();
-      ctx.beginPath(); ctx.arc(px, py + 4, 5, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#f2c14e';
-      ctx.beginPath(); ctx.arc(px, py, 4, 0, Math.PI * 2); ctx.fill();
+      const bob = Math.round(Math.sin(t / 400 + hs.x) * 2);
+      envFlower(ctx, px, py + bob, (hs.x + hs.y) % 3);
     } else if (hs.kind === 'rock') {
-      ctx.fillStyle = '#9a9a9a';
-      ctx.beginPath(); ctx.ellipse(px, py, 11, 9, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#7c7c7c';
-      ctx.beginPath(); ctx.ellipse(px - 3, py - 2, 5, 3, 0, 0, Math.PI * 2); ctx.fill();
+      spr(ctx, rockSprite((hs.x + hs.y) % 2), px - 12, py - 12);
     } else if (hs.kind === 'altar') {
+      const pulse = 1 + Math.sin(t / 260) * 0.25;
+      ctx.fillStyle = 'rgba(30,20,10,0.3)';
+      ctx.fillRect(px - 16, py + 14, 32, 6);
       ctx.fillStyle = '#8a8f7a';
-      ctx.fillRect(px - 14, py - 6, 28, 22);
+      ctx.fillRect(px - 14, py - 4, 28, 18);
+      ctx.fillStyle = '#6e7362';
+      ctx.fillRect(px - 14, py - 4, 28, 3);
       ctx.fillStyle = '#c9b458';
-      ctx.beginPath(); ctx.arc(px, py - 10, 6 * pulse, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath();
+      ctx.arc(px, py - 10, 4 + pulse * 2, 0, Math.PI * 2);
+      ctx.fill();
+      sparkle(ctx, px, py - 20, t);
     } else if (hs.kind === 'bo') {
-      drawSheep(ctx, px, py, false, 0, 0);
+      drawSheep(ctx, px, py, false);
+    } else if (hs.kind === 'secret') {
+      if (hs.id === 'sign') {
+        const e = envSprites();
+        spr(ctx, e.sign, px - 8, py - 16);
+      } else {
+        sparkle(ctx, px, py, t);
+        sparkle(ctx, px + 8, py - 6, t + 200);
+      }
     }
   }
 
   drawTitle(ctx) {
-    ctx.fillStyle = 'rgba(10,12,16,0.88)';
+    ctx.fillStyle = 'rgba(10,12,16,0.9)';
     ctx.fillRect(0, 0, 960, 640);
-    drawSheep(ctx, 480, 300, true, 0, 0);
+    // big pixel sheep
+    const s = sprites().sheepBlack[0];
+    if (s) {
+      ctx.save();
+      ctx.imageSmoothingEnabled = false;
+      ctx.translate(480, 290);
+      ctx.scale(4, 4);
+      ctx.drawImage(s, -s.width / 2, -s.height / 2 - 10);
+      ctx.restore();
+    }
     ctx.textAlign = 'center';
-    ctx.fillStyle = '#f2f2f2';
+    ctx.fillStyle = '#2a2a32';
     ctx.font = 'bold 46px "Courier New", monospace';
+    ctx.fillText('B L A C K S H E E', 482, 412);
+    ctx.fillStyle = '#f2f2f2';
     ctx.fillText('B L A C K S H E E', 480, 410);
     ctx.fillStyle = '#c9b458';
     ctx.font = '15px "Courier New", monospace';
-    ctx.fillText('The only black sheep in a world of white ones.', 480, 442);
+    ctx.fillText('The only black sheep in a world of white ones.', 480, 444);
     ctx.fillStyle = '#8f97a5';
     ctx.font = '13px "Courier New", monospace';
     ctx.fillText('Collect the five Memories. Help a few weird sheep. Press Enter to begin.', 480, 480);
     ctx.fillStyle = '#f2e9c9';
     ctx.font = 'bold 15px "Courier New", monospace';
-    ctx.fillText('[Enter]', 480, 530);
+    ctx.fillText('[Enter]', 480, 532);
     ctx.textAlign = 'left';
   }
 }
 
-// Shared chunky sheep renderer. dark = player (black wool).
-function drawSheep(ctx, cx, cy, dark, dx, dy) {
-  const body = dark ? '#2b2b33' : '#f5f2e8';
-  const head = dark ? '#33333d' : '#7a6a5a';
-  const leg = dark ? '#1c1c22' : '#b8b0a0';
-  const eye = dark ? '#f2f2f2' : '#1c1c22';
-  const wool = dark ? '#2b2b33' : '#ece7d6';
+// Small orbiting sparkle for collectibles.
+function sparkle(ctx, cx, cy, t) {
+  const a = t / 300;
+  const r = 11;
+  for (let i = 0; i < 3; i++) {
+    const ang = a + (i * Math.PI * 2) / 3;
+    const x = cx + Math.cos(ang) * r;
+    const y = cy + Math.sin(ang) * r * 0.6;
+    ctx.fillStyle = i % 2 ? '#f2f2f2' : '#f2c14e';
+    ctx.fillRect(Math.round(x), Math.round(y), 2, 2);
+  }
+}
 
-  ctx.fillStyle = leg;
-  ctx.fillRect(cx - 10 + dx, cy + 8 + dy, 5, 8);
-  ctx.fillRect(cx + 5 + dx, cy + 8 + dy, 5, 8);
+// Pixel flower (same look as ground flowers) for pickup spots.
+function envFlower(ctx, cx, cy, hue) {
+  const petals = ['#e86a92', '#f2c14e', '#8fc8e8'][hue];
+  ctx.fillStyle = '#3e6b2c';
+  ctx.fillRect(cx - 1, cy + 6, 2, 8);
+  ctx.fillStyle = petals;
+  ctx.fillRect(cx - 5, cy, 4, 4);
+  ctx.fillRect(cx + 3, cy, 4, 4);
+  ctx.fillRect(cx - 1, cy - 4, 4, 4);
+  ctx.fillRect(cx - 1, cy + 4, 4, 4);
+  ctx.fillStyle = '#c8be7a';
+  ctx.fillRect(cx, cy - 1, 3, 3);
+}
 
-  ctx.fillStyle = body;
-  ctx.beginPath();
-  ctx.ellipse(cx + dx, cy + 2 + dy, 13, 13, 0, 0, Math.PI * 2);
-  ctx.fill();
-
-  const hx = cx + dx * 0 + (dx || -6);
-  const hy = cy + dy * 0 + (dy || -6);
-  ctx.fillStyle = wool;
-  ctx.beginPath();
-  ctx.ellipse(hx + 6, hy - 2, 6, 5, 0, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.fillStyle = head;
-  ctx.beginPath();
-  ctx.arc(cx + 10 + dx, cy - 2 + dy, 8, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.fillStyle = eye;
-  ctx.beginPath();
-  ctx.arc(cx + 13 + dx, cy - 4 + dy, 1.8, 0, Math.PI * 2);
-  ctx.fill();
+// Shared pixel sheep for NPCs, Bo, and the meadow.
+function drawSheep(ctx, cx, cy, dark) {
+  const t = performance.now();
+  const key = dark ? 'sheepBlack' : 'sheepWhite';
+  const s = sprites()[key];
+  const { img, bob } = sheepPose(s, false, t);
+  ctx.fillStyle = 'rgba(30,20,10,0.22)';
+  ctx.fillRect(cx - 13, cy + 13, 26, 4);
+  spr(ctx, img, Math.round(cx - img.width / 2), Math.round(cy - img.height / 2 + bob));
 }

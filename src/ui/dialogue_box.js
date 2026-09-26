@@ -1,31 +1,36 @@
-// Bottom dialogue panel: speaker name + wrapped text.
+// Bottom dialogue panel: speaker plate + wrapped text, pixel frame.
 export function drawDialogueBox(ctx, dialogue) {
   const cur = dialogue.current;
   const text = cur.text || '';
   const top = 470;
-  ctx.fillStyle = 'rgba(22,24,30,0.95)';
+  ctx.fillStyle = '#1c2027';
   ctx.fillRect(20, top, 920, 150);
-  ctx.strokeStyle = '#d9c07a';
-  ctx.lineWidth = 3;
+  ctx.strokeStyle = '#c9b46a';
+  ctx.lineWidth = 2;
   ctx.strokeRect(22, top + 2, 916, 146);
 
   if (cur.speaker) {
-    ctx.fillStyle = '#c9b458';
-    ctx.font = 'bold 13px "Courier New", monospace';
-    ctx.fillText(cur.speaker.toUpperCase(), 36, top + 28);
-    ctx.fillStyle = 'rgba(217,192,122,0.4)';
-    ctx.fillRect(36, top + 36, 120, 2);
+    // speaker plate
+    ctx.fillStyle = '#2a2e36';
+    ctx.fillRect(28, top - 14, 12 + ctx.measureText(cur.speaker.toUpperCase()).width + 18, 22);
+    ctx.fillStyle = '#c9b46a';
+    ctx.fillRect(28, top - 14, 12 + ctx.measureText(cur.speaker.toUpperCase()).width + 18, 2);
+    ctx.fillStyle = '#f2c14e';
+    ctx.font = 'bold 12px "Courier New", monospace';
+    ctx.fillText(cur.speaker.toUpperCase(), 40, top - 0);
   }
 
   ctx.fillStyle = '#eae6da';
   ctx.font = '16px "Courier New", monospace';
   const wrapped = wrap(text, 54);
-  wrapped.forEach((line, i) => ctx.fillText(line, 36, top + 62 + i * 22));
+  wrapped.forEach((line, i) => ctx.fillText(line, 36, top + 40 + i * 22));
 
-  // advance arrow
-  ctx.fillStyle = '#f2e9c9';
-  ctx.font = 'bold 14px "Courier New", monospace';
-  ctx.fillText('▼ [E]', 860, top + 140);
+  // advance arrow (blinks)
+  if (Math.floor(performance.now() / 420) % 2 === 0) {
+    ctx.fillStyle = '#f2e9c9';
+    ctx.font = 'bold 14px "Courier New", monospace';
+    ctx.fillText('▼ [E]', 858, top + 140);
+  }
 }
 
 function wrap(text, width) {
