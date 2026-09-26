@@ -11,6 +11,8 @@ import { TILE, START } from './data/world.js';
 import { DIALOGUE } from './data/dialogue.js';
 import { sfx, ensureAudio } from './systems/sfx.js';
 import { sprites, spr, sheepPose, memorySprite, envSprites, rockSprite } from './systems/sprites.js';
+import { net } from './systems/net.js';
+import { renderFP } from './render/first_person.js';
 
 export class Game {
   constructor(ctx) {
@@ -26,6 +28,13 @@ export class Game {
     this.near = null;
     this.playTime = 0;
     this.noDoorUntil = 0;
+    this.mounted = false;
+    this.myId = (globalThis.crypto && typeof globalThis.crypto.randomUUID === 'function')
+      ? globalThis.crypto.randomUUID()
+      : 'p' + Math.random().toString(36).slice(2);
+    this.others = new Map();       // id -> { x, y, dir, mounted }
+    this.sendTimer = 0;
+    net.init((players) => this.syncPlayers(players));
     this.attachInput();
   }
 
@@ -39,6 +48,7 @@ export class Game {
         e.preventDefault();
         if (!e.repeat) this.logOpen = !this.logOpen;
       }
+      if (e.code === 'KeyM' && !e.repeat) this.tryMountToggle();
       this.keys[e.code] = true;
     });
     window.addEventListener('keyup', (e) => {
@@ -48,6 +58,25 @@ export class Game {
 
   say(pairs, onDone) {
     this.dialogue.start(pairs, onDone);
+  }
+
+  // M key: mount/dismount the Mount Sheep (only after the keeper grants it).
+  tryMountToggle() {
+    if (this.mode !== 'play' || this.dialogue.active || !this.q.mountOwned) return;
+    this.mounted = !this.mounted;
+    this.player.speed = this.mounted ? 300 : 170;
+    this.player.moving = false;
+    sfx.done();
+  }
+
+  // Incoming other-player states from the relay.
+  syncPlayers(players) {
+    const next = new Map();
+    for (const pl of players) {
+      if (pl.id === this.myId) continue;
+      next.set(pl.id, pl);
+    }
+    this.others = next;
   }
 
   // One-time world beat when the 5th Memory lands.
@@ -82,6 +111,20 @@ export class Game {
     }
 
     this.playTime += dt;
+
+    // Network: push our state at ~20 Hz.
+    this.sendTimer += dt;
+    if (this.sendTimer > 0.05) {
+      this.sendTimer = 0;
+      net.send({
+        id: this.myId,
+        x: this.player.x,
+        y: this.player.y,
+        dir: { x: this.player.dir.x, y: this.player.dir.y },
+        mounted: this.mounted,
+        mountId: this.mounted ? 'sheep' : null,
+      });
+    }
 
     // Movement (NPC bodies block like walls).
     const blockers = this.world.npcs.map((n) => ({ px: n.px, py: n.py, w: 32, h: 32 }));
@@ -133,31 +176,46 @@ export class Game {
   render() {
     const { ctx } = this;
     ctx.imageSmoothingEnabled = false;
-    ctx.fillStyle = '#7ea54e';
-    ctx.fillRect(0, 0, 960, 640);
 
-    this.world.draw(ctx, this);
+    if (this.mounted && this.q.mountOwned) {
+      renderFP(ctx, this, this.others);
+    } else {
+      ctx.fillStyle = '#7ea54e';
+      ctx.fillRect(0, 0, 960, 640);
 
-    // Hotspots.
-    for (const hs of this.world.hotspots) {
-      this.drawHotspot(ctx, hs);
-    }
+      this.world.draw(ctx, this);
 
-    // NPCs.
-    for (const n of this.world.npcs) {
-      drawSheep(ctx, n.px + 20, n.py + 20, false);
-      if (this.near && this.near.type === 'npc' && this.near.ref === n) {
-        ctx.fillStyle = '#f2e9c9';
-        ctx.font = 'bold 12px "Courier New", monospace';
-        const w = ctx.measureText(n.name).width;
-        ctx.fillStyle = 'rgba(20,22,26,0.8)';
-        ctx.fillRect(n.px + 20 - w / 2 - 6, n.py - 16, w + 12, 18);
-        ctx.fillStyle = '#f2e9c9';
-        ctx.fillText(n.name, n.px + 20 - w / 2, n.py - 2);
+      // Hotspots.
+      for (const hs of this.world.hotspots) {
+        this.drawHotspot(ctx, hs);
       }
-    }
 
-    this.player.draw(ctx);
+      // NPCs.
+      for (const n of this.world.npcs) {
+        drawSheep(ctx, n.px + 20, n.py + 20, false);
+        if (this.near && this.near.type === 'npc' && this.near.ref === n) {
+          ctx.fillStyle = '#f2e9c9';
+          ctx.font = 'bold 12px "Courier New", monospace';
+          const w = ctx.measureText(n.name).width;
+          ctx.fillStyle = 'rgba(20,22,26,0.8)';
+          ctx.fillRect(n.px + 20 - w / 2 - 6, n.py - 16, w + 12, 18);
+          ctx.fillStyle = '#f2e9c9';
+          ctx.fillText(n.name, n.px + 20 - w / 2, n.py - 2);
+        }
+      }
+
+      // Remote co-op players (white sheep + name).
+      for (const o of this.others.values()) {
+        drawSheep(ctx, o.x + 13, o.y + 15, false);
+        if (o.mounted) {
+          ctx.fillStyle = '#c9b458';
+          ctx.font = 'bold 10px "Courier New", monospace';
+          ctx.fillText('riding', o.x + 13 - 14, o.y + 4);
+        }
+      }
+
+      this.player.draw(ctx);
+    }
 
     if (this.mode === 'title') this.drawTitle(ctx);
     else {

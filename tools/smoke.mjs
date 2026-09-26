@@ -87,6 +87,20 @@ teleport('village', 19, 7);
 g.advance = true; g.update(1 / 60); finishDialogue();
 check(g.q.memories === 4, 'bell = memory 4');
 
+// MOUNT: talk Elder (starts quest), Mount Keeper gifts the Mount Sheep
+teleport('village', 14, 9);
+g.advance = true; g.update(1 / 60); finishDialogue();
+check(g.q.elderTalked, 'elder talk sets elderTalked');
+teleport('village', 1, 8); g.update(1 / 60); // village > farm
+teleport('farm', 12, 11);
+g.advance = true; g.update(1 / 60); finishDialogue();
+check(g.q.mountOwned, 'mount keeper gifts Mount Sheep after elder talk');
+check(g.mounted === false, 'player starts unmounted');
+g.tryMountToggle();
+check(g.mounted === true && g.player.speed === 300, 'M toggles mounted + faster speed');
+g.tryMountToggle();
+check(g.mounted === false && g.player.speed === 170, 'M dismount restores speed');
+
 // rock sidequest: pick rock, talk Rock Sheep
 teleport('village', 17, 11);
 g.advance = true; g.update(1 / 60); finishDialogue();

@@ -86,4 +86,20 @@ export const DIALOGUE = {
     ['Hidden Sheep', 'Please do not tell the judges.'],
     ['Hidden Sheep', 'Take this dust as a souvenir. It is plot dust. Very valuable.'],
   ],
+  mountkeeper: [
+    ['Mount Keeper', 'Every great adventurer needs a mount.'],
+    ['Mount Keeper', 'We have sheep.'],
+    ['Mount Keeper', "You're a sheep."],
+    ['Mount Keeper', 'Please do not overthink this.'],
+    ['Mount Keeper', 'Go speak to the Elder first. A hero needs a quest. Then come back for your steed.'],
+  ],
+  mountkeeper_gift: [
+    ['Mount Keeper', 'Ah, a REAL hero of legend! Or at least: a sheep with a quest.'],
+    ['Mount Keeper', 'Excellent. THIS is the Mount Sheep™. It is also a sheep.'],
+    ['Mount Keeper', 'Get on its back. Do not unpack that sentence.'],
+    ['Mount Keeper', 'Press M to mount. It looks at the world from up there.'],
+  ],
+  mountkeeper_after: [
+    ['Mount Keeper', 'The Mount Sheep™ looks up to you. Metaphorically. Mostly.'],
+  ],
 };

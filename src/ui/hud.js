@@ -33,6 +33,19 @@ export function drawHud(ctx, game) {
   ctx.font = 'bold 13px "Courier New", monospace';
   shadowText(ctx, game.world.def.name.toUpperCase(), 582, 29, '#b8c9a8');
 
+  // Mount indicator
+  if (game.mounted) {
+    panel(ctx, 570, 42, 200, 24);
+    ctx.fillStyle = '#e8b83e';
+    ctx.font = 'bold 12px "Courier New", monospace';
+    shadowText(ctx, 'MOUNTED  [M]', 582, 60, '#e8b83e');
+  } else if (game.q.mountOwned && !game.dialogue.active) {
+    panel(ctx, 570, 42, 200, 24);
+    ctx.fillStyle = '#9aa0a8';
+    ctx.font = '12px "Courier New", monospace';
+    ctx.fillText('Press M to mount', 582, 60);
+  }
+
   // Interact hint
   if (game.near && !game.dialogue.active) {
     panel(ctx, 350, 596, 150, 30);

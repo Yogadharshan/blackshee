@@ -16,6 +16,8 @@ export function createQuestState() {
     hiddenFound: false,
     side: { flowers: 'idle', friend: 'idle', rock: 'idle' },
     sealAnnounced: false,
+    elderTalked: false,
+    mountOwned: false,
   };
 }
 
@@ -24,8 +26,17 @@ export const SIDE = SIDEQUESTS;
 // Pick the right dialogue lines for an NPC given current progress.
 export function talkFor(npcId, q) {
   switch (npcId) {
-    case 'elder':
+    case 'elder': {
+      q.elderTalked = true;
       return q.memories >= q.required ? DIALOGUE.elder_after : DIALOGUE.elder;
+    }
+    case 'mountKeeper':
+      if (q.mountOwned) return DIALOGUE.mountkeeper_after;
+      if (q.elderTalked) {
+        q.mountOwned = true;
+        return DIALOGUE.mountkeeper_gift;
+      }
+      return DIALOGUE.mountkeeper;
     case 'baabara':
       if (q.flowersGiven) return DIALOGUE.baabara_after;
       if (q.side.flowers === 'done') return DIALOGUE.baabara_after;

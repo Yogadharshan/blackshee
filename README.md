@@ -30,14 +30,27 @@ Important Rock.
 
 Two secrets hide off the path. Finding them is optional — and encouraged.
 
+Co-op (modifier): run `node server.js` (the WebSocket relay), then open
+`http://localhost:8000/?room=1` in **two tabs**. Both sheep appear in each
+other's worlds; a second browser/tab on any machine on the network can join the
+same room. If the relay is down, the game plays single-player — networking
+never blocks play.
+
+Mount: talk to the Elder, then visit the Mount Keeper in the Farm to receive
+the Mount Sheep™. Press `M` to mount/dismount — mounting gives faster movement
+and a first-person raycasted view of the same world (ground, walls, billboard
+sheep, sparkling Memories). `E` still talks and picks things up while mounted.
+
 ## Project layout
 
 ```
 index.html          entry, canvas
+server.js           WebSocket relay (rooms, player-state broadcast)
 src/main.js         game loop bootstrap
-src/game.js         orchestration: state, update, render, input
+src/game.js         orchestration: state, update, render, input, mount, net
+src/render/         first-person raycaster (pseudo-3D mounted view)
 src/data/           world maps, NPCs, dialogue, quests, hotspots (all content)
-src/systems/        collision, world, player, dialogue, quests, collectibles
+src/systems/        collision, world, player, dialogue, quests, collectibles, mounts, net
 src/ui/             HUD, dialogue box, ending screen
 tools/validate.mjs  map integrity check (node tools/validate.mjs)
 tools/smoke.mjs     headless full playthrough (node tools/smoke.mjs)

@@ -3,6 +3,13 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "serve": "python3 -m http.server 8000"
+    "serve": "python3 -m http.server 8000",
+    "server": "node server.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  },
+  "dependencies": {
+    "ws": "^8.21.3"
   }
 }
