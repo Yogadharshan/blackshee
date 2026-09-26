@@ -1,8 +1,12 @@
 import { Game } from './game.js';
+import { net } from './systems/net.js';
 
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
 const game = new Game(ctx);
+// Dev hook so automated checks (tools/cdp_verify.mjs) can inspect real browser state.
+window.__game = game;
+window.__net = net;
 // Test hooks: ?play=1 starts in-game; &mount=1 grants+mounts for screenshot checks. Inert otherwise.
 const hp = new URLSearchParams(location.search);
 if (hp.has('play')) game.mode = 'play';

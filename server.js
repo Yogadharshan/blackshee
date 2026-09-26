@@ -1,22 +1,80 @@
-// Minimal WebSocket relay: rooms by name, broadcast player state only.
-// No game logic lives here — the world stays authoritative in each client.
+// BLACKSHEE single-process server:
+//   1. serves the static game (index.html, style.css, src/**)
+//   2. exposes /healthz for platform health checks
+//   3. hosts the WebSocket co-op relay on /ws?room=<code>
+// One port, no proxy needed. Port comes from $PORT (Railway/Render/Fly) or 8080.
+import { createServer } from 'node:http';
+import { readFile } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
+import { dirname, join, normalize, extname, sep } from 'node:path';
 import { WebSocketServer } from 'ws';
 
-const PORT = process.env.PORT || 8081;
-const wss = new WebSocketServer({ port: PORT });
+const PORT = process.env.PORT || 8080;
+const ROOT = dirname(fileURLToPath(import.meta.url));
+
+const MIME = {
+  '.html': 'text/html; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.js': 'text/javascript; charset=utf-8',
+  '.json': 'application/json',
+  '.png': 'image/png',
+  '.svg': 'image/svg+xml',
+  '.ico': 'image/x-icon',
+};
+
+// Strict allowlist of served paths. Only what the game needs; docs/tools stay private.
+function resolvePath(pathname) {
+  if (pathname === '/' || pathname === '/index.html') return join(ROOT, 'index.html');
+  if (pathname === '/style.css') return join(ROOT, 'style.css');
+  if (pathname.startsWith('/src/')) {
+    const file = normalize(join(ROOT, pathname));
+    if (file.startsWith(join(ROOT, 'src') + sep)) return file;
+  }
+  return null;
+}
+
+const server = createServer(async (req, res) => {
+  const url = new URL(req.url, 'http://localhost');
+  if (url.pathname === '/healthz') {
+    res.writeHead(200, { 'content-type': 'text/plain' });
+    res.end('ok');
+    return;
+  }
+  const file = resolvePath(url.pathname);
+  if (!file) {
+    res.writeHead(404, { 'content-type': 'text/plain' });
+    res.end('404');
+    return;
+  }
+  try {
+    const body = await readFile(file);
+    res.writeHead(200, { 'content-type': MIME[extname(file)] || 'application/octet-stream' });
+    res.end(body);
+  } catch {
+    res.writeHead(500, { 'content-type': 'text/plain' });
+    res.end('500');
+  }
+});
+
+// --- WebSocket co-op relay: rooms by name, broadcast player state only. ---
+// No game logic lives here — the world stays authoritative in each client.
+const wss = new WebSocketServer({ server, path: '/ws' });
 
 const rooms = new Map(); // room -> { sockets:Set, states:Map(id -> state) }
 
-function roomOf(ws) {
-  const param = new URLSearchParams((ws.url || '').split('?')[1]);
-  return param.get('room') || 'demo';
+function roomOf(req) {
+  // NOTE: server-side ws.url is undefined; the request URL lives on req.url.
+  const param = new URLSearchParams((req.url || '').split('?')[1] || '');
+  return (param.get('room') || 'demo').trim().toUpperCase().slice(0, 12) || 'demo';
 }
 
 wss.on('connection', (ws, req) => {
-  const room = roomOf(ws);
-  if (!rooms.has(room)) rooms.set(room, { sockets: new Set(), states: new Map(), shared: { discovered: false, sixth: false }, zone: new Map() });
+  const room = roomOf(req);
+  if (!rooms.has(room)) rooms.set(room, { sockets: new Set(), states: new Map(), shared: { discovered: false, sixth: false } });
   const r = rooms.get(room);
   r.sockets.add(ws);
+  ws.isAlive = true;
+  ws.on('pong', () => { ws.isAlive = true; });
 
   ws.on('message', (raw) => {
     let msg;
@@ -61,4 +119,16 @@ function broadcast(r) {
   }
 }
 
-wss.on('listening', () => console.log(`blackshee relay on ws://localhost:${PORT}`));
+server.listen(PORT, () => {
+  console.log(`blackshee on http://localhost:${PORT} (ws relay on /ws)`);
+});
+
+// Reap dead sockets (killed tabs/browsers) so ghost players don't linger in a room.
+const heartbeat = setInterval(() => {
+  for (const ws of wss.clients) {
+    if (ws.isAlive === false) { ws.terminate(); continue; }
+    ws.isAlive = false;
+    try { ws.ping(); } catch { /* ignore */ }
+  }
+}, 15000);
+wss.on('close', () => clearInterval(heartbeat));

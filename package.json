@@ -2,12 +2,14 @@
   "name": "blackshee",
   "private": true,
   "type": "module",
-  "scripts": {
-    "serve": "python3 -m http.server 8000",
-    "server": "node server.js"
+  "engines": {
+    "node": ">=18"
   },
-  "dependencies": {
-    "ws": "^8.18.0"
+  "scripts": {
+    "start": "node server.js",
+    "serve": "node server.js",
+    "check": "node tools/validate.mjs && node tools/smoke.mjs",
+    "verify": "node tools/cdp_verify.mjs"
   },
   "dependencies": {
     "ws": "^8.21.3"

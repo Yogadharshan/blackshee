@@ -9,9 +9,12 @@ function open(roomCode) {
   closeRaw();
   room = (roomCode || 'demo').trim().toUpperCase().slice(0, 12) || 'demo';
   if (typeof location === 'undefined' || typeof WebSocket === 'undefined') return;
+  if (location.protocol === 'file:') return; // no relay available over file://
   const proto = location.protocol === 'https:' ? 'wss' : 'ws';
   try {
-    ws = new WebSocket(`${proto}://${location.hostname || 'localhost'}:8081?room=${room}`);
+    // Same-origin: whoever served the page hosts the relay at /ws. Works in
+    // dev (node server.js) and in production (https + wss) with no port config.
+    ws = new WebSocket(`${proto}://${location.host}/ws?room=${room}`);
   } catch { ws = null; return; }
 
   ws.onopen = () => { connected = true; };

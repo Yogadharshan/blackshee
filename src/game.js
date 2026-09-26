@@ -38,8 +38,12 @@ export class Game {
     this.revealShown = false;
     this.roomUI = { active: false, code: '', joined: false };
     this.roomCode = '';
-    net.init((players) => this.syncPlayers(players));
+    net.init((players, shared) => this.syncPlayers(players, shared));
     this.roomCode = net.room || this.roomCode;
+    // Safety net: keep transmitting even if rAF is paused (backgrounded tab).
+    this.netTimer = setInterval(() => {
+      if (this.mode === 'play') this.sendState();
+    }, 120);
     this.attachInput();
   }
 
@@ -98,6 +102,22 @@ export class Game {
     this.player.speed = this.mounted ? 300 : 170;
     this.player.moving = false;
     sfx.done();
+  }
+
+  // Broadcast our state to the relay. Safe to call at any time (no-op offline).
+  sendState() {
+    net.send({
+      id: this.myId,
+      x: this.player.x,
+      y: this.player.y,
+      dir: { x: this.player.dir.x, y: this.player.dir.y },
+      mounted: this.mounted,
+      mountId: this.mounted ? 'sheep' : null,
+      secretIn: this.inSecretZone() ? 1 : 0,
+      poke: this.secretPoke ? 1 : 0,
+      sixth: this.q.secret.sixth ? 1 : 0,
+    });
+    this.secretPoke = false;
   }
 
   // Join (or create) a co-op room with the given code. Create = fresh code, room auto-appears.
@@ -170,22 +190,12 @@ export class Game {
 
     this.playTime += dt;
 
-    // Network: push our state at ~20 Hz.
+    // Network: push our state at ~20 Hz (a timer also does this when rAF is paused
+    // because the tab is backgrounded, so the other player still sees us move).
     this.sendTimer += dt;
     if (this.sendTimer > 0.05) {
       this.sendTimer = 0;
-      net.send({
-        id: this.myId,
-        x: this.player.x,
-        y: this.player.y,
-        dir: { x: this.player.dir.x, y: this.player.dir.y },
-        mounted: this.mounted,
-        mountId: this.mounted ? 'sheep' : null,
-        secretIn: this.inSecretZone() ? 1 : 0,
-        poke: this.secretPoke ? 1 : 0,
-        sixth: this.q.secret.sixth ? 1 : 0,
-      });
-      this.secretPoke = false;
+      this.sendState();
     }
 
     // Movement (NPC bodies block like walls).
