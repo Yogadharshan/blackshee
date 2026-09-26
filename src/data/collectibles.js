@@ -13,4 +13,5 @@ export const HOTSPOTS = [
   { id: 'bo',         kind: 'bo',     area: 'forest',  x: 2,  y: 6 },
   { id: 'sign',       kind: 'secret', area: 'village', x: 7,  y: 3 },
   { id: 'hidden',     kind: 'secret', area: 'meadow',  x: 21, y: 4 },
+  { id: 'secretTree', kind: 'secret', area: 'forest',  x: 5,  y: 13 },
 ];

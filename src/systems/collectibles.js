@@ -40,7 +40,8 @@ export function handleHotspot(game, hs) {
     }
     case 'altar': {
       if (q.memories >= q.required) {
-        game.say(dialogLines('shrine_altar'), () => {
+        const lines = q.secret.sixth ? dialogLines('shrine_altar_six') : dialogLines('shrine_altar');
+        game.say(lines, () => {
           q.finished = true;
           rewardFor('altar', q);
           game.mode = 'ending';
@@ -59,6 +60,15 @@ export function handleHotspot(game, hs) {
         if (q.hiddenFound) return;
         q.hiddenFound = true;
         game.say(dialogLines('hidden'));
+      } else if (hs.id === 'secretTree') {
+        if (q.secret.discovered) {
+          game.say(dialogLines('tree_open'));
+          return;
+        }
+        q.secret.treePokes++;
+        const poke = Math.min(q.secret.treePokes, 3);
+        game.say(dialogLines('tree' + poke));
+        game.secretPoke = true; // latch for the co-op relay
       }
       break;
     }

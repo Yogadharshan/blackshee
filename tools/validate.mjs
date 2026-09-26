@@ -17,9 +17,9 @@ for (const [name, area] of Object.entries(AREAS)) {
 const tilesOf = (a) => AREAS[a].tiles;
 for (const d of DOORS) {
   const ch = tilesOf(d.from)[d.y][d.x];
-  report(ch === 'D' || ch === 'X', `door ${d.from}(${d.x},${d.y}) tile is '${ch}' not D/X`);
+  report(ch === 'D' || ch === 'X' || (d.secret && ch === 'S'), `door ${d.from}(${d.x},${d.y}) tile is '${ch}' not D/X/S-for-secret`);
   const ch2 = tilesOf(d.to)[d.ty][d.tx];
-  report(ch2 === 'D' || ch2 === 'X', `door ${d.to}(${d.tx},${d.ty}) tile is '${ch2}' not D/X`);
+  report(ch2 === 'D' || ch2 === 'X' || ch2 === 'S', `door ${d.to}(${d.tx},${d.ty}) tile is '${ch2}' not D/X`);
 }
 report(tilesOf(START.area)[START.tileY][START.tileX] !== '#', `start tile solid`);
 

@@ -8,4 +8,5 @@ export const NPCS = [
   { id: 'meadowSheep',  name: 'Meadow Sheep',      area: 'meadow',  x: 12, y: 9,  talk: 'meadow' },
   { id: 'suspicious',   name: 'Suspicious Sheep',  area: 'forest',  x: 6,  y: 9,  talk: 'suspicious' },
   { id: 'mountKeeper',  name: 'Mount Keeper',      area: 'farm',    x: 12, y: 11, talk: 'mountKeeper' },
+  { id: 'sixth',        name: 'The Sheep Who Knows Too Much', area: 'hidden', x: 12, y: 8, talk: 'sixth' },
 ];

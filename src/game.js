@@ -34,6 +34,8 @@ export class Game {
       : 'p' + Math.random().toString(36).slice(2);
     this.others = new Map();       // id -> { x, y, dir, mounted }
     this.sendTimer = 0;
+    this.secretPoke = false;
+    this.revealShown = false;
     this.roomUI = { active: false, code: '', joined: false };
     this.roomCode = '';
     net.init((players) => this.syncPlayers(players));
@@ -102,14 +104,31 @@ export class Game {
     sfx.done();
   }
 
-  // Incoming other-player states from the relay.
-  syncPlayers(players) {
+  // Incoming other-player states + shared room state from the relay.
+  syncPlayers(players, shared) {
     const next = new Map();
     for (const pl of players) {
       if (pl.id === this.myId) continue;
       next.set(pl.id, pl);
     }
     this.others = next;
+    if (shared) {
+      if (shared.discovered && !this.q.secret.discovered) {
+        this.q.secret.discovered = true;
+        if (!this.revealShown) {
+          this.revealShown = true;
+          if (!this.dialogue.active) this.say(DIALOGUE.tree_reveal);
+        }
+      }
+      if (shared.sixth) this.q.secret.sixth = true;
+    }
+  }
+
+  // Is the player standing near the suspicious tree (co-op zone)?
+  inSecretZone() {
+    const tx = Math.floor(this.player.cx / TILE);
+    const ty = Math.floor(this.player.cy / TILE);
+    return Math.abs(tx - 5) <= 1 && Math.abs(ty - 13) <= 1;
   }
 
   // One-time world beat when the 5th Memory lands.
@@ -156,7 +175,11 @@ export class Game {
         dir: { x: this.player.dir.x, y: this.player.dir.y },
         mounted: this.mounted,
         mountId: this.mounted ? 'sheep' : null,
+        secretIn: this.inSecretZone() ? 1 : 0,
+        poke: this.secretPoke ? 1 : 0,
+        sixth: this.q.secret.sixth ? 1 : 0,
       });
+      this.secretPoke = false;
     }
 
     // Movement (NPC bodies block like walls).
@@ -170,7 +193,9 @@ export class Game {
       const ty = Math.floor(this.player.cy / TILE);
       const door = this.world.doorAt(tx, ty);
       if (door) {
-        if (door.sealed && this.q.memories < this.q.required) {
+        if (door.secret && !this.q.secret.discovered) {
+          // The secret tree hides its path until both players find it.
+        } else if (door.sealed && this.q.memories < this.q.required) {
           this.say(DIALOGUE.gate_sealed);
         } else {
           this.world.setArea(door.to);
@@ -179,6 +204,12 @@ export class Game {
           this.noDoorUntil = now + 0.35;
         }
       }
+    }
+
+    // Once discovered, the suspicious tree becomes a doorway.
+    if (this.world.area === 'forest' && this.q.secret.discovered) {
+      const t = this.world.tiles;
+      if (t[13][5] === 'S') t[13][5] = 'D';
     }
 
     // Interaction: pressing E near someone/something.

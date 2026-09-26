@@ -20,7 +20,7 @@ function open(roomCode) {
   ws.onmessage = (ev) => {
     try {
       const msg = JSON.parse(ev.data);
-      if (msg.t === 'players' && onPlayers) onPlayers(msg.players || []);
+      if (msg.t === 'players' && onPlayers) onPlayers(msg.players || [], msg.shared || { discovered: false, sixth: false });
     } catch { /* ignore bad frames */ }
   };
 }

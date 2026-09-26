@@ -119,18 +119,36 @@ teleport('forest', 9, 9);
 g.advance = true; g.update(1 / 60); finishDialogue();
 check(g.q.memories === 5, 'ribbon = memory 5 (5/5)');
 
-// Bo friend sidequest: talk Bo, then Farm Sheep
+// boFound flag + friend sidequest
 teleport('forest', 2, 6);
 g.advance = true; g.update(1 / 60); finishDialogue();
 check(g.q.boFound, 'Bo found');
 teleport('forest', 12, 14); g.update(1 / 60); // forest > village
-teleport('village', 12, 1); g.update(1 / 60); // village > forest... map hop
+teleport('village', 12, 1); g.update(1 / 60); // village > forest
 teleport('forest', 12, 14); g.update(1 / 60);
 teleport('village', 12, 1); g.update(1 / 60);
 teleport('village', 1, 8); g.update(1 / 60); // village > farm
 teleport('farm', 17, 10);
 g.advance = true; g.update(1 / 60); finishDialogue();
 check(g.q.side.friend === 'done', 'friend sidequest complete');
+
+// SECRET AREA: co-op discovery via relay shared state
+teleport('forest', 12, 14); g.update(1 / 60); // farm... no; ensure forest
+teleport('forest', 5, 13);
+check(g.inSecretZone(), 'secret zone detects player near tree');
+g.syncPlayers([], { discovered: true, sixth: false });
+finishDialogue();
+check(g.q.secret.discovered, 'shared discovery applied');
+// tree flips to doorway and opens into Nowhere
+g.noDoorUntil = 0;
+g.update(1 / 60);
+check(g.world.area === 'hidden', 'secret tree becomes a doorway into Nowhere');
+// Sixth Memory from the Sheep Who Knows Too Much
+teleport('hidden', 12, 8);
+for (let i = 0; i < 5; i++) { g.advance = true; g.update(1 / 60); finishDialogue(); }
+check(g.q.secret.sixth, 'sixth memory granted on 5th talk');
+g.syncPlayers([], { discovered: true, sixth: true });
+check(g.q.secret.sixth, 'sixth memory is shared state');
 
 // gate sealed at 0-4, open at 5
 teleport('farm', 22, 8); g.update(1 / 60); // farm > village

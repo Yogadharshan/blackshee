@@ -18,6 +18,7 @@ export function createQuestState() {
     sealAnnounced: false,
     elderTalked: false,
     mountOwned: false,
+    secret: { discovered: false, sixth: false, treePokes: 0, sheepTalk: 0 },
   };
 }
 
@@ -61,6 +62,15 @@ export function talkFor(npcId, q) {
       if (q.boFound) { q.side.friend = 'done'; return DIALOGUE.farm_after; }
       q.side.friend = 'active';
       return DIALOGUE.farm;
+    case 'suspicious':
+      return q.secret.discovered ? DIALOGUE.suspicious : DIALOGUE.suspicious_secret;
+    case 'sixth': {
+      q.secret.sheepTalk++;
+      if (q.secret.sixth) return DIALOGUE.sixth_after;
+      if (q.secret.sheepTalk >= 5) { q.secret.sixth = true; return DIALOGUE.sixth_grant; }
+      const lines = [DIALOGUE.sixth1, DIALOGUE.sixth2, DIALOGUE.sixth3, DIALOGUE.sixth4, DIALOGUE.sixth_grant];
+      return lines[Math.min(q.secret.sheepTalk - 1, 3)];
+    }
     default:
       return DIALOGUE[npcId] || [['', '...baa.']];
   }

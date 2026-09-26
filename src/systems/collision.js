@@ -6,7 +6,7 @@ export function tileAt(tiles, tx, ty) {
 }
 
 export function isSolid(ch) {
-  return ch === '#' || ch === 'B' || ch === 'W' || ch === 'F' || ch === 'R';
+  return ch === '#' || ch === 'B' || ch === 'W' || ch === 'F' || ch === 'R' || ch === 'S';
 }
 
 // True if the AABB [x,y,w,h] overlaps any solid tile.

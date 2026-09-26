@@ -58,6 +58,12 @@ export const DIALOGUE = {
     ['Suspicious Sheep', 'The village is watching you. No. I am watching you. No.'],
     ['Suspicious Sheep', 'The gate to the shrine is as sealed as my feelings.'],
   ],
+  suspicious_secret: [
+    ['Suspicious Sheep', 'Oh, that tree down south?'],
+    ['Suspicious Sheep', 'There is nothing behind it.'],
+    ['Suspicious Sheep', '...'],
+    ['Suspicious Sheep', 'Definitely nothing. Do not both stand near it. Especially not together. All at once.'],
+  ],
   memory_bell: ['The Old Bell. It does not ring. It remembers ringing.'],
   memory_toy: ['A Wooden Toy. Chewed by a sheep with very strong opinions about it.'],
   memory_ribbon: ['An Old Ribbon. Faded, but the color holds on.'],
@@ -101,5 +107,29 @@ export const DIALOGUE = {
   ],
   mountkeeper_after: [
     ['Mount Keeper', 'The Mount Sheep™ looks up to you. Metaphorically. Mostly.'],
+  ],
+  tree1: [['Tree', "It's a tree."]],
+  tree2: [['Tree', 'Still a tree.']],
+  tree3: [['Tree', 'You are becoming very familiar with this tree.']],
+  tree_reveal: [['', '*rustle*'], ['', 'A hidden path appeared.']],
+  tree_open: [['Tree', 'The way is open. There was definitely nothing here before.']],
+  sixth1: [
+    ['The Sheep Who Knows Too Much', 'Oh.'],
+    ['The Sheep Who Knows Too Much', 'You found this.'],
+    ['The Sheep Who Knows Too Much', "That's inconvenient."],
+  ],
+  sixth2: [['The Sheep Who Knows Too Much', 'Please leave.']],
+  sixth3: [['The Sheep Who Knows Too Much', "I'm serious."]],
+  sixth4: [['The Sheep Who Knows Too Much', 'Fine. Do you want the thing or not?']],
+  sixth_grant: [
+    ['The Sheep Who Knows Too Much', 'Here. Take it. It caused all the weirdness.'],
+    ['The Sheep Who Knows Too Much', 'THE SIXTH MEMORY.', 'This memory has not happened yet.', 'Do not ask what that means. I do not know either.'],
+  ],
+  sixth_after: [['The Sheep Who Knows Too Much', 'You already have it. Congratulations. Please go.']],
+  shrine_altar_six: [
+    ['', 'The five Memories rest at the altar. Five.'],
+    ['', 'A voice, quieter now: "...why do you have six?"'],
+    ['', 'A pause. "That was not supposed to happen."'],
+    ['', 'The voice softens: "Then again, neither were you."'],
   ],
 };

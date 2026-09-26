@@ -40,6 +40,19 @@ export class World {
             spr(ctx, treeSprite((x + y) % 3), px0, py0 - 6);
             shade(ctx, px0, py0, 10);
             break;
+          case 'secretTree':
+            spr(ctx, treeSprite(1), px0, py0 - 6);
+            // the mismatch: shadow drifts away from the canopy (the clue)
+            ctx.fillStyle = 'rgba(20,15,8,0.35)';
+            ctx.fillRect(px0 + 14, py0 + 26, 16, 8);
+            shade(ctx, px0, py0, 10);
+            break;
+          case 'pillar':
+            ctx.fillStyle = '#9aa08a';
+            ctx.fillRect(px0 + 8, py0 + 4, 24, 32);
+            ctx.fillStyle = '#7c8270';
+            ctx.fillRect(px0 + 8, py0 + 4, 24, 5);
+            break;
           case 'building':
             spr(ctx, houseSprite((x + y) % 2), px0 + 2, py0 - 2);
             break;
