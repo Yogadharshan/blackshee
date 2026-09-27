@@ -20,6 +20,7 @@ Port comes from `$PORT` (set by Railway/Render/Fly) or defaults to 8080.
 
 - `WASD` / arrows — move
 - `E` / Enter / Space — talk, pick up, advance dialogue
+- after talking to an NPC: `↑`/`↓` or `1–5` to choose a question, `E` to ask, `Esc` to leave
 - `Tab` — quest log
 - `M` — mount / dismount (after getting the Mount Sheep™)
 
@@ -45,6 +46,23 @@ If the relay is down, the game plays single-player — networking never blocks p
 Talk to the Elder, then visit the Mount Keeper in the Farm to receive the Mount Sheep™.
 `M` mounts/dismounts — mounting gives faster movement and a first-person raycasted view
 of the same world. `E` still talks and picks things up while mounted.
+
+### Local AI NPCs (optional)
+
+The Elder can answer your guided questions with a browser-local model (Qwen2.5‑0.5B via
+Transformers.js on WebGPU). It is entirely optional: if WebGPU is missing, the CDN is
+blocked, or the model fails to load, the game silently uses the scripted answers and stays
+fully playable. The game never waits on the model.
+
+- Inspect state in the console: `__npcAI()` → `{status, selected, webgpu, importOk, modelReady, progress, lastError, ...}`.
+- Force scripted (for testing/older browsers): open with `?noai=1`.
+- If your network or browser blocks the Hugging Face **weight** CDN (`*.cdn.hf.co`):
+  - point at a reachable host: `?hfhost=https://<host-with-the-model>`, or
+  - self-host the weights same-origin: put the repo files under
+    `models/onnx-community/Qwen2.5-0.5B-Instruct/` and open with `?localmodel=1`
+    (the server already serves `/models/`).
+
+Only the Elder uses the local model for now; all other NPCs stay scripted.
 
 ## Deploy
 

@@ -8,8 +8,13 @@
   "scripts": {
     "start": "node server.js",
     "serve": "node server.js",
-    "check": "node tools/validate.mjs && node tools/smoke.mjs",
-    "verify": "node tools/cdp_verify.mjs"
+    "check": "node tools/validate.mjs && node tools/smoke.mjs && node tools/npc_context_test.mjs && node tools/ask_flow_test.mjs && node tools/npc_slm_test.mjs",
+    "test:npc": "node tools/npc_context_test.mjs",
+    "test:ask": "node tools/ask_flow_test.mjs",
+    "test:slm": "node tools/npc_slm_test.mjs",
+    "verify": "node tools/cdp_verify.mjs",
+    "verify:ask": "node tools/cdp_ask_verify.mjs",
+    "verify:slm": "node tools/cdp_slm_verify.mjs"
   },
   "dependencies": {
     "ws": "^8.21.3"

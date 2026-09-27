@@ -20,15 +20,22 @@ const MIME = {
   '.png': 'image/png',
   '.svg': 'image/svg+xml',
   '.ico': 'image/x-icon',
+  '.wasm': 'application/wasm',
+  '.onnx': 'application/octet-stream',
+  '.bin': 'application/octet-stream',
+  '.txt': 'text/plain; charset=utf-8',
 };
 
 // Strict allowlist of served paths. Only what the game needs; docs/tools stay private.
 function resolvePath(pathname) {
   if (pathname === '/' || pathname === '/index.html') return join(ROOT, 'index.html');
   if (pathname === '/style.css') return join(ROOT, 'style.css');
-  if (pathname.startsWith('/src/')) {
+  // /models/ lets the (optional) local SLM weights be served same-origin, which
+  // sidesteps browsers/blockers that cannot reach the HF weight CDN.
+  if (pathname.startsWith('/src/') || pathname.startsWith('/models/')) {
+    const base = pathname.startsWith('/models/') ? join(ROOT, 'models') : join(ROOT, 'src');
     const file = normalize(join(ROOT, pathname));
-    if (file.startsWith(join(ROOT, 'src') + sep)) return file;
+    if (file.startsWith(base + sep)) return file;
   }
   return null;
 }
@@ -50,9 +57,10 @@ const server = createServer(async (req, res) => {
     const body = await readFile(file);
     res.writeHead(200, { 'content-type': MIME[extname(file)] || 'application/octet-stream' });
     res.end(body);
-  } catch {
-    res.writeHead(500, { 'content-type': 'text/plain' });
-    res.end('500');
+  } catch (e) {
+    const code = e && e.code === 'ENOENT' ? 404 : 500;
+    res.writeHead(code, { 'content-type': 'text/plain' });
+    res.end(String(code));
   }
 });
 

@@ -27,7 +27,8 @@ const teleport = (area, x, y) => {
   g.portalLockUntil = 0;
 };
 
-// step through an open dialogue until it closes
+// step through an open dialogue until it closes, then leave any guided question
+// chooser that opened (the player would press Escape).
 const finishDialogue = () => {
   let guard = 0;
   while (g.dialogue.active && guard < 20) {
@@ -35,6 +36,7 @@ const finishDialogue = () => {
     g.update(1 / 60);
     guard++;
   }
+  if (g.ask.active) g.closeAsk();
 };
 
 const busyWait = (ms) => { const until = performance.now() + ms; while (performance.now() < until) { /* spin */ } };

@@ -13,6 +13,10 @@ import { sfx, ensureAudio } from './systems/sfx.js';
 import { sprites, spr, sheepPose, memorySprite, envSprites, rockSprite } from './systems/sprites.js';
 import { net } from './systems/net.js';
 import { renderFP } from './render/first_person.js';
+import { PERSONAS, INTENT_LABELS } from './data/npc_personas.js';
+import { buildContext } from './systems/npc_context.js';
+import { npcDialogue } from './systems/npc_dialogue.js';
+import { drawAskMenu } from './ui/ask_menu.js';
 
 export class Game {
   constructor(ctx) {
@@ -43,6 +47,9 @@ export class Game {
     this.revealShown = false;
     this.roomUI = { active: false, code: '', joined: false };
     this.roomCode = '';
+    // Guided NPC conversation (Phase 2). Modal chooser shown after an NPC's
+    // authored opening dialogue; wording only, never mutates game state.
+    this.ask = { active: false, npcId: null, npcName: '', intents: [], index: 0, answer: null, answerIntent: null, thinking: false };
     net.init((players, shared) => this.syncPlayers(players, shared));
     this.roomCode = net.room || this.roomCode;
     // Safety net: keep transmitting even if rAF is paused (backgrounded tab).
@@ -82,6 +89,40 @@ export class Game {
         return;
       }
 
+      // Guided question chooser owns the keyboard until the player leaves.
+      if (this.ask.active) {
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          this.closeAsk();
+          return;
+        }
+        if (e.code === 'ArrowUp' || e.code === 'KeyW') {
+          e.preventDefault();
+          if (!e.repeat) this.moveAsk(-1);
+          return;
+        }
+        if (e.code === 'ArrowDown' || e.code === 'KeyS') {
+          e.preventDefault();
+          if (!e.repeat) this.moveAsk(1);
+          return;
+        }
+        if (e.code === 'KeyE' || e.code === 'Enter' || e.code === 'Space') {
+          e.preventDefault();
+          if (!this.keys[e.code]) this.askQuestion();
+          this.keys[e.code] = true;
+          return;
+        }
+        const n = /^[1-9]$/.test(e.key) ? Number(e.key) : 0;
+        if (n && n <= this.ask.intents.length) {
+          e.preventDefault();
+          this.ask.index = n - 1;
+          this.askQuestion();
+          return;
+        }
+        e.preventDefault();
+        return;
+      }
+
       if (e.code === 'KeyE' || e.code === 'Enter' || e.code === 'Space') {
         if (!this.keys[e.code]) this.advance = true;
       }
@@ -99,6 +140,59 @@ export class Game {
 
   say(pairs, onDone) {
     this.dialogue.start(pairs, onDone);
+  }
+
+  // After an NPC's opening dialogue, offer only the questions that NPC supports
+  // (npc_personas.js is the source of truth). NPCs without a persona get none.
+  openGuided(npcId, npcName) {
+    const persona = PERSONAS[npcId];
+    const intents = ((persona && persona.supportedIntents) || []).filter((i) => INTENT_LABELS[i]);
+    if (!intents.length) return;
+    this.ask = {
+      active: true,
+      npcId,
+      npcName: npcName || persona.name,
+      intents,
+      index: 0,
+      answer: null,
+      answerIntent: null,
+      thinking: false,
+    };
+  }
+
+  moveAsk(delta) {
+    if (!this.ask.active) return;
+    const n = this.ask.intents.length;
+    this.ask.index = (this.ask.index + delta + n) % n;
+  }
+
+  closeAsk() {
+    this.ask.active = false;
+    this.ask.answer = null;
+    this.ask.answerIntent = null;
+    this.ask.thinking = false;
+  }
+
+  // Ask the highlighted question. Wording only: buildContext reads state, the
+  // dialogue service generates text, and nothing here mutates the game.
+  async askQuestion() {
+    const a = this.ask;
+    if (!a.active) return;
+    const intent = a.intents[a.index];
+    const npcId = a.npcId;
+    a.answer = null;
+    a.answerIntent = intent;
+    a.thinking = true;
+    const context = buildContext(npcId, this, intent, null);
+    let text;
+    try {
+      text = await npcDialogue.generate(context);
+    } catch {
+      text = '...';
+    }
+    if (!this.ask.active || this.ask.npcId !== npcId) return;
+    this.ask.answer = text;
+    this.ask.thinking = false;
   }
 
   // M key: mount/dismount the Mount Sheep (only after the keeper grants it).
@@ -186,6 +280,12 @@ export class Game {
       return;
     }
 
+    // Guided question chooser is modal: freeze the world until the player leaves.
+    if (this.ask.active) {
+      this.advance = false;
+      return;
+    }
+
     // Play mode.
     const pressed = this.advance;
     this.advance = false;
@@ -252,6 +352,8 @@ export class Game {
         this.say(talkFor(npc.id, this.q), () => {
           rewardFor(npc.id, this.q);
           this.maybeAnnounceSeal();
+          // Opening stays authored; guided questions are the optional extra.
+          this.openGuided(npc.id, npc.name);
         });
       } else {
         const wasActive = this.dialogue.active;
@@ -317,6 +419,7 @@ export class Game {
     else {
       drawHud(ctx, this);
       if (this.dialogue.active) drawDialogueBox(ctx, this.dialogue);
+      else if (this.ask.active) drawAskMenu(ctx, this.ask, this.ask.npcName);
     }
     if (this.mode === 'ending') drawEnding(ctx, this);
   }
@@ -402,6 +505,17 @@ export class Game {
       ctx.fillStyle = '#f2e9c9';
       ctx.font = 'bold 14px "Courier New", monospace';
       ctx.fillText('[Enter] begin', 480, 566);
+    }
+    // Optional local SLM status (never blocks play).
+    if (npcDialogue.status === 'loading') {
+      const local = npcDialogue.local;
+      const pct = Math.round(((local && local.progress) || 0) * 100);
+      const detail = local && local.progressLabel ? `  ${local.progressLabel}` : '';
+      ctx.fillStyle = '#8f97a5';
+      ctx.font = '12px "Courier New", monospace';
+      let label = `SHEEP ARE THINKING... ${pct}%${detail}`;
+      if (label.length > 78) label = label.slice(0, 77) + '…';
+      ctx.fillText(label, 480, 600);
     }
     ctx.textAlign = 'left';
   }
