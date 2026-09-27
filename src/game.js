@@ -12,7 +12,6 @@ import { DIALOGUE } from './data/dialogue.js';
 import { sfx, ensureAudio } from './systems/sfx.js';
 import { sprites, spr, sheepPose, memorySprite, envSprites, rockSprite } from './systems/sprites.js';
 import { net } from './systems/net.js';
-import { renderFP } from './render/first_person.js';
 import { PERSONAS, INTENT_LABELS } from './data/npc_personas.js';
 import { buildContext } from './systems/npc_context.js';
 import { npcDialogue } from './systems/npc_dialogue.js';
@@ -467,43 +466,41 @@ export class Game {
     const { ctx } = this;
     ctx.imageSmoothingEnabled = false;
 
-    if (this.mounted && this.q.mountOwned) {
-      renderFP(ctx, this, this.others);
-    } else {
-      ctx.fillStyle = '#7ea54e';
-      ctx.fillRect(0, 0, 960, 640);
+    // Single top-down camera for every state. Mounting changes how the player
+    // is drawn (black rider on a white Mount Sheep) and its speed, nothing else.
+    ctx.fillStyle = '#7ea54e';
+    ctx.fillRect(0, 0, 960, 640);
 
-      this.world.draw(ctx, this);
+    this.world.draw(ctx, this);
 
-      // Hotspots.
-      for (const hs of this.world.hotspots) {
-        this.drawHotspot(ctx, hs);
-      }
-
-      // NPCs.
-      for (const n of this.world.npcs) {
-        drawSheep(ctx, n.px + 20, n.py + 20, false);
-        if (this.near && this.near.type === 'npc' && this.near.ref === n) {
-          ctx.fillStyle = '#f2e9c9';
-          ctx.font = 'bold 12px "Courier New", monospace';
-          const w = ctx.measureText(n.name).width;
-          ctx.fillStyle = 'rgba(20,22,26,0.8)';
-          ctx.fillRect(n.px + 20 - w / 2 - 6, n.py - 16, w + 12, 18);
-          ctx.fillStyle = '#f2e9c9';
-          ctx.fillText(n.name, n.px + 20 - w / 2, n.py - 2);
-        }
-      }
-
-      // Remote co-op players (black sheep, like you), drawn at the eased render
-      // position. A mounted remote rides a white Mount Sheep. Presentation only.
-      for (const o of this.others.values()) {
-        if (o.mounted) drawRiderSheep(ctx, o.rx + 13, o.ry + 15);
-        else drawSheep(ctx, o.rx + 13, o.ry + 15, true);
-        drawNameTag(ctx, o.rx + 13, o.ry - 3, remoteTagText());
-      }
-
-      this.player.draw(ctx);
+    // Hotspots.
+    for (const hs of this.world.hotspots) {
+      this.drawHotspot(ctx, hs);
     }
+
+    // NPCs.
+    for (const n of this.world.npcs) {
+      drawSheep(ctx, n.px + 20, n.py + 20, false);
+      if (this.near && this.near.type === 'npc' && this.near.ref === n) {
+        ctx.fillStyle = '#f2e9c9';
+        ctx.font = 'bold 12px "Courier New", monospace';
+        const w = ctx.measureText(n.name).width;
+        ctx.fillStyle = 'rgba(20,22,26,0.8)';
+        ctx.fillRect(n.px + 20 - w / 2 - 6, n.py - 16, w + 12, 18);
+        ctx.fillStyle = '#f2e9c9';
+        ctx.fillText(n.name, n.px + 20 - w / 2, n.py - 2);
+      }
+    }
+
+    // Remote co-op players (black sheep, like you), drawn at the eased render
+    // position. A mounted remote rides a white Mount Sheep. Presentation only.
+    for (const o of this.others.values()) {
+      if (o.mounted) drawRiderSheep(ctx, o.rx + 13, o.ry + 15);
+      else drawSheep(ctx, o.rx + 13, o.ry + 15, true);
+      drawNameTag(ctx, o.rx + 13, o.ry - 3, remoteTagText());
+    }
+
+    this.player.draw(ctx, this.mounted);
 
     if (this.mode === 'title') this.drawTitle(ctx);
     else {

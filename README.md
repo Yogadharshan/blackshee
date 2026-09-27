@@ -52,11 +52,11 @@ it too), the partner is cleared instead of lingering, and the client keeps retry
 room with backoff until the relay returns — no reload needed. On recovery a `Reconnected ✓`
 blip appears. A manual leave stops the retries.
 
-### Mount + first-person
+### Mount
 
 Talk to the Elder, then visit the Mount Keeper in the Farm to receive the Mount Sheep™.
-`M` mounts/dismounts — mounting gives faster movement and a first-person raycasted view
-of the same world. `E` still talks and picks things up while mounted.
+`M` mounts/dismounts — mounting puts the black sheep on top of the white Mount Sheep for
+faster movement, in the same top-down view. `E` still talks and picks things up while mounted.
 
 ### Local AI NPCs (optional)
 
@@ -122,7 +122,6 @@ server.js           single process: static + /healthz + ws relay
 index.html          entry, canvas
 src/main.js         game loop bootstrap
 src/game.js         orchestration: state, update, render, input, mount, net
-src/render/         first-person raycaster (pseudo-3D mounted view)
 src/data/           world maps, NPCs, dialogue, quests, hotspots (all content)
 src/systems/        collision, world, player, dialogue, quests, collectibles, mounts, net
 src/ui/             HUD, dialogue box, ending screen

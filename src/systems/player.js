@@ -48,16 +48,29 @@ export class Player {
     this.y = Math.max(0, Math.min(this.y, TILE * 16 - this.h));
   }
 
-  draw(ctx) {
+  // Mounted: the black rider sits on top of the white Mount Sheep. Same
+  // top-down camera; only the sprite pair and speed change with mounting.
+  draw(ctx, mounted = false) {
     const t = performance.now();
-    const s = sprites().sheepBlack;
-    const { img, bob } = sheepPose(s, this.moving, t);
     const flip = this.dir.x < 0;
-    const ix = this.x + (this.w - img.width) / 2;
-    const iy = this.y + this.h - img.height + bob - 3;
     // soft ground shadow
     ctx.fillStyle = 'rgba(30,20,10,0.25)';
     ctx.fillRect(this.x + 4, this.y + this.h - 4, this.w - 8, 5);
+
+    if (mounted) {
+      const mount = sheepPose(sprites().sheepWhite, this.moving, t);
+      const rider = sheepPose(sprites().sheepBlack, this.moving, t);
+      const baseY = this.y + this.h - rider.img.height + rider.bob - 3;
+      const mx = this.x + (this.w - mount.img.width) / 2;
+      const rx = this.x + (this.w - rider.img.width) / 2;
+      spr(ctx, mount.img, mx, baseY + 11, flip); // white mount beneath
+      spr(ctx, rider.img, rx, baseY, flip);      // black rider on top
+      return;
+    }
+
+    const { img, bob } = sheepPose(sprites().sheepBlack, this.moving, t);
+    const ix = this.x + (this.w - img.width) / 2;
+    const iy = this.y + this.h - img.height + bob - 3;
     spr(ctx, img, ix, iy, flip);
   }
 }
