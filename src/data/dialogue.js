@@ -4,11 +4,12 @@ export const DIALOGUE = {
   elder: [
     ['Elder Sheep', 'Welcome, little one. You have a strange quiet about you.'],
     ['Elder Sheep', 'The Old Shrine has been silent for years. It waits for five Memories.'],
-    ['Elder Sheep', 'Find them. The Old Bell, the Red Flower, the Wooden Toy, the Old Ribbon, the Photograph.'],
-    ['Elder Sheep', 'When all five are returned, the seal will break.'],
+    ['Elder Sheep', 'The Old Bell. The Red Flower. The Wooden Toy. The Old Ribbon. The Photograph.'],
+    ['Elder Sheep', 'Bring all five home. Then the seal breaks.'],
+    ['Elder Sheep', 'I would tell you more, but I mostly remember grass.'],
   ],
   elder_after: [
-    ['Elder Sheep', 'The shrine is waiting for you. Finish what you started.'],
+    ['Elder Sheep', 'Still waiting. Finish what you started.'],
   ],
   baabara: [
     ['Baaabara', 'The flowers. The FLOWERS. They are the color of the sun and I cannot have them.'],
@@ -54,7 +55,8 @@ export const DIALOGUE = {
   ],
   meadow: [
     ['Meadow Sheep', 'The grass tastes better over this fence. It always does.'],
-    ['Meadow Sheep', 'I miss someone. I am not sure who. Maybe you should find the shrine.'],
+    ['Meadow Sheep', 'I miss someone. I am not sure who.'],
+    ['Meadow Sheep', 'I graze here anyway. In case.'],
   ],
   suspicious: [
     ['Suspicious Sheep', 'The village is watching you. No. I am watching you. No.'],
@@ -136,8 +138,8 @@ export const DIALOGUE = {
   ],
   flower_pickup: [['', 'A flower. It does not know it was picked yet.']],
   rock_pickup: [['', 'A rock. A very important rock. Extremely. Legally.']],
-  gate_sealed: ['A strange force holds the shrine sealed. Something is missing.'],
-  gate_open: ['The seal is gone. The shrine is open.'],
+  gate_sealed: [['', 'The shrine is still sealed. Something is missing.']],
+  gate_open: [['', 'The seal is gone. The shrine is open.']],
   shrine_altar: [
     ['', 'The five Memories rest at the altar. The shrine remembers them all.'],
     ['', 'A voice, softer than wool: "You are different. You always were.'] ,
@@ -267,7 +269,8 @@ export const DIALOGUE = {
   sixth4: [['The Sheep Who Knows Too Much', 'Fine. Do you want the thing or not?']],
   sixth_grant: [
     ['The Sheep Who Knows Too Much', 'Here. Take it. It caused all the weirdness.'],
-    ['The Sheep Who Knows Too Much', 'THE SIXTH MEMORY.', 'This memory has not happened yet.', 'Do not ask what that means. I do not know either.'],
+    ['THE SIXTH MEMORY.', 'This memory has not happened yet.'],
+    ['', 'Do not ask what that means. I do not know either.'],
   ],
   sixth_after: [['The Sheep Who Knows Too Much', 'You already have it. Congratulations. Please go.']],
   shrine_altar_six: [
