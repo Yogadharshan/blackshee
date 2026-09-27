@@ -19,6 +19,22 @@ import { npcDialogue } from './systems/npc_dialogue.js';
 import { drawAskMenu } from './ui/ask_menu.js';
 import { hasSave, loadSave, writeSave, clearSave, applySave } from './systems/save.js';
 
+// Remote-player presentation tuning. The network position stays authoritative;
+// these only affect how the remote sheep is drawn, never simulation or collision.
+//   REMOTE_SMOOTH_TAU  — easing time constant (seconds) toward the last packet.
+//                        Smaller = snappier, larger = smoother/laggier.
+//   REMOTE_SNAP_DIST   — a jump larger than this is treated as a teleport
+//                        (area change / reconnect) and shown without easing, so
+//                        nobody slides across the map from a stale position.
+const REMOTE_SMOOTH_TAU = 0.09;
+const REMOTE_SNAP_DIST = 96;
+
+// Identity shown above the remote player. The protocol carries no display name,
+// so use one minimal deterministic label rather than expanding identity.
+export function remoteTagText() {
+  return 'Black Sheep';
+}
+
 export class Game {
   constructor(ctx) {
     this.ctx = ctx;
@@ -265,12 +281,31 @@ export class Game {
     if (status === 'open' && info && info.recovered) this.netFlash = 1.6;
   }
 
+  // Ease each remote render position toward its authoritative network position.
+  // Presentation only: exponential smoothing, frame-rate independent.
+  updateOthers(dt) {
+    const k = 1 - Math.exp(-dt / REMOTE_SMOOTH_TAU);
+    for (const o of this.others.values()) {
+      o.rx += (o.x - o.rx) * k;
+      o.ry += (o.y - o.ry) * k;
+    }
+  }
+
   // Incoming other-player states + shared room state from the relay.
   syncPlayers(players, shared) {
+    const prev = this.others;
     const next = new Map();
     for (const pl of players) {
       if (pl.id === this.myId) continue;
-      next.set(pl.id, pl);
+      const old = prev.get(pl.id);
+      // Keep the in-flight render position so movement eases instead of snapping.
+      // A brand-new id (or a large jump) starts fresh at the received position —
+      // this is what keeps reconnect from interpolating from a stale location.
+      const far = old && (Math.abs(old.rx - pl.x) > REMOTE_SNAP_DIST || Math.abs(old.ry - pl.y) > REMOTE_SNAP_DIST);
+      next.set(pl.id, Object.assign({}, pl, {
+        rx: !old || far ? pl.x : old.rx,
+        ry: !old || far ? pl.y : old.ry,
+      }));
     }
     this.others = next;
     if (shared) {
@@ -337,6 +372,9 @@ export class Game {
     }
 
     this.playTime += dt;
+
+    // Remote rendering: ease remote sprites toward their last network position.
+    this.updateOthers(dt);
 
     // Network: push our state at ~20 Hz (a timer also does this when rAF is paused
     // because the tab is backgrounded, so the other player still sees us move).
@@ -456,14 +494,12 @@ export class Game {
         }
       }
 
-      // Remote co-op players (black sheep, like you).
+      // Remote co-op players (black sheep, like you), drawn at the eased render
+      // position. A mounted remote rides a white Mount Sheep. Presentation only.
       for (const o of this.others.values()) {
-        drawSheep(ctx, o.x + 13, o.y + 15, true);
-        if (o.mounted) {
-          ctx.fillStyle = '#c9b458';
-          ctx.font = 'bold 10px "Courier New", monospace';
-          ctx.fillText('riding', o.x + 13 - 14, o.y + 4);
-        }
+        if (o.mounted) drawRiderSheep(ctx, o.rx + 13, o.ry + 15);
+        else drawSheep(ctx, o.rx + 13, o.ry + 15, true);
+        drawNameTag(ctx, o.rx + 13, o.ry - 3, remoteTagText());
       }
 
       this.player.draw(ctx);
@@ -692,6 +728,33 @@ function envFlower(ctx, cx, cy, hue) {
   ctx.fillRect(cx - 1, cy + 4, 4, 4);
   ctx.fillStyle = '#c8be7a';
   ctx.fillRect(cx, cy - 1, 3, 3);
+}
+
+// Small identity tag above a remote player. Presentation only; it is drawn
+// inside the same per-frame loop as the sprite, so it vanishes with the sprite.
+function drawNameTag(ctx, cx, bottomY, text) {
+  ctx.font = 'bold 10px "Courier New", monospace';
+  const w = ctx.measureText(text).width;
+  const x = Math.round(cx - w / 2);
+  const y = Math.round(bottomY - 14);
+  ctx.fillStyle = 'rgba(20,22,26,0.82)';
+  ctx.fillRect(x - 5, y, w + 10, 15);
+  ctx.fillStyle = '#c9b458';
+  ctx.fillRect(x - 5, y, w + 10, 1);
+  ctx.fillStyle = '#f2e9c9';
+  ctx.fillText(text, x, y + 11);
+}
+
+// Remote player on a mount: white Mount Sheep beneath, black rider on top.
+// Built from the existing sheep sprites — no new art, presentation only.
+function drawRiderSheep(ctx, cx, cy) {
+  const t = performance.now();
+  const mount = sheepPose(sprites().sheepWhite, false, t);
+  const rider = sheepPose(sprites().sheepBlack, false, t);
+  ctx.fillStyle = 'rgba(30,20,10,0.22)';
+  ctx.fillRect(cx - 15, cy + 15, 30, 4);
+  spr(ctx, mount.img, Math.round(cx - mount.img.width / 2), Math.round(cy - mount.img.height / 2 + mount.bob + 7));
+  spr(ctx, rider.img, Math.round(cx - rider.img.width / 2), Math.round(cy - rider.img.height / 2 + rider.bob - 4));
 }
 
 // Shared pixel sheep for NPCs, Bo, and the meadow.
