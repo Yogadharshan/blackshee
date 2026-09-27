@@ -1,5 +1,7 @@
 import { DIALOGUE } from '../data/dialogue.js';
 import { SIDEQUESTS } from '../data/quests.js';
+import { advanceStory } from './story.js';
+import { MEMORY_BEATS } from '../data/story_beats.js';
 
 // All progress lives here. NPCs and hotspots read flags from this.
 export function createQuestState() {
@@ -81,9 +83,14 @@ export function talkFor(npcId, q) {
 }
 
 // Reward granted right after a "done" dialogue closes. Won't double-grant.
-export function rewardFor(npcId, q) {
+// The Red Flower Memory arrives here (not via a hotspot), so the same story
+// beats are fired as for a collected Memory.
+export function rewardFor(npcId, game) {
+  const q = game.q;
   if (npcId === 'baabara' && q.flowersGiven && !q.collected['flower']) {
     q.collected['flower'] = true;
     q.memories = Math.min(q.required, q.memories + 1);
+    advanceStory(game, 'STAGE_1_FIRST_MEMORY');
+    if (MEMORY_BEATS.flower) advanceStory(game, MEMORY_BEATS.flower);
   }
 }

@@ -458,7 +458,7 @@ export class Game {
       if (this.near.type === 'npc') {
         const npc = this.near.ref;
         this.say(talkFor(npc.id, this.q), () => {
-          rewardFor(npc.id, this.q);
+          rewardFor(npc.id, this);
           this.maybeAnnounceSeal();
           // Opening stays authored; guided questions are the optional extra.
           this.openGuided(npc.id, npc.name);

@@ -2,6 +2,7 @@ import { DIALOGUE } from '../data/dialogue.js';
 import { rewardFor } from './quests.js';
 import { sfx } from './sfx.js';
 import { advanceStory } from './story.js';
+import { MEMORY_BEATS } from '../data/story_beats.js';
 
 export function dialogLines(key) {
   return DIALOGUE[key] || [['', '...baa?']];
@@ -15,8 +16,10 @@ export function handleHotspot(game, hs) {
       if (q.collected[hs.item]) return;
       q.collected[hs.item] = true;
       q.memories = Math.min(q.required, q.memories + 1);
-      // First Memory is the one stage-1 beat defined by game state (§23).
+      // The first Memory (any item) is the one stage-1 beat defined by state;
+      // later authored Memories advance their own beat (see MEMORY_BEATS).
       advanceStory(game, 'STAGE_1_FIRST_MEMORY');
+      if (MEMORY_BEATS[hs.item]) advanceStory(game, MEMORY_BEATS[hs.item]);
       sfx.pickup();
       game.say(dialogLines(hs.dialog));
       break;
@@ -46,7 +49,7 @@ export function handleHotspot(game, hs) {
         const lines = q.secret.sixth ? dialogLines('shrine_altar_six') : dialogLines('shrine_altar');
         game.say(lines, () => {
           q.finished = true;
-          rewardFor('altar', q);
+          rewardFor('altar', game);
           game.mode = 'ending';
         });
       } else {

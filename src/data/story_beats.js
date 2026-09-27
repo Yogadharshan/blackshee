@@ -11,3 +11,15 @@ export const STORY_BEATS = Object.freeze([
   Object.freeze({ id: 'STAGE_5_REMEMBERED', stage: 5 }),
   Object.freeze({ id: 'TWIN_REVEALED', stage: 5, flag: 'twinRevealed' }),
 ]);
+
+// Which authored Memory advances which narrative beat. The first Memory (any
+// item) also fires STAGE_1_FIRST_MEMORY via the generic collection path; these
+// entries are the later authored Memories. The Photograph is intentionally
+// absent: it is the strongest evidence, but it prepares the later recognition
+// rather than advancing a stage on its own.
+export const MEMORY_BEATS = Object.freeze({
+  bell: 'STAGE_1_FIRST_MEMORY',
+  flower: 'STAGE_2_FRAGMENTS',
+  toy: 'STAGE_3_BAA_LIFE',
+  ribbon: 'STAGE_4_FORGOTTEN',
+});

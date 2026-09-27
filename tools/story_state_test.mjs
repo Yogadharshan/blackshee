@@ -7,6 +7,7 @@ import {
   MULTIPLAYER_LOCKED, storyStage, advanceStory, twinRevealed, choose, choice, hasChoice,
 } from '../src/systems/story.js';
 import { handleHotspot } from '../src/systems/collectibles.js';
+import { rewardFor } from '../src/systems/quests.js';
 import { writeSave, loadSave, applySave, clearSave } from '../src/systems/save.js';
 
 let fail = 0;
@@ -54,17 +55,27 @@ choose(g, '', 'A');
 choose(g, 'X', '');
 check(!hasChoice(g, '') && !hasChoice(g, 'X'), 'empty ids are ignored');
 
-// --- wiring: first Memory advances stage 1 ----------------------------------
+// --- wiring: authored Memories advance their beats --------------------------
 const m = game();
 handleHotspot(m, { kind: 'memory', item: 'bell', dialog: 'memory_bell' });
-check(m.q.memories === 1 && storyStage(m) === 1, 'collecting the first Memory fires STAGE_1_FIRST_MEMORY');
+check(m.q.memories === 1 && storyStage(m) === 1, 'Old Bell -> STAGE_1_FIRST_MEMORY');
 handleHotspot(m, { kind: 'memory', item: 'toy', dialog: 'memory_toy' });
-check(m.q.memories === 2 && storyStage(m) === 1, 'later Memories do not advance the narrative by themselves');
+check(m.q.memories === 2 && storyStage(m) === 3, 'Wooden Toy -> STAGE_3_BAA_LIFE');
+handleHotspot(m, { kind: 'memory', item: 'ribbon', dialog: 'memory_ribbon' });
+check(storyStage(m) === 4, 'Old Ribbon -> STAGE_4_FORGOTTEN');
+handleHotspot(m, { kind: 'memory', item: 'photo', dialog: 'memory_photo' });
+check(m.q.memories === 4 && storyStage(m) === 4, 'Photograph adds collection but no new stage');
+
+const f = game();
+f.q.flowersGiven = true;
+rewardFor('baabara', f);
+check(f.q.collected.flower === true && f.q.memories === 1 && storyStage(f) === 2,
+  'Red Flower (reward) -> STAGE_2_FRAGMENTS');
 
 const deep = game();
-deep.q.story.stage = 3;
-handleHotspot(deep, { kind: 'memory', item: 'ribbon', dialog: 'memory_ribbon' });
-check(storyStage(deep) === 3, 'collecting a Memory cannot regress a later story stage');
+deep.q.story.stage = 4;
+handleHotspot(deep, { kind: 'memory', item: 'toy', dialog: 'memory_toy' });
+check(storyStage(deep) === 4, 'a Memory cannot regress a later story stage');
 
 // --- beat table integrity ----------------------------------------------------
 check(STORY_BEATS.every((b) => typeof b.id === 'string' && b.stage >= 0),
