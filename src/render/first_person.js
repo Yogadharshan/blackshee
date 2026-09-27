@@ -7,10 +7,18 @@ const W = 320;
 const H = 180;
 const COLS = 160;
 const FOV = 0.66;
-const SOLID = new Set(['#', 'B', 'F', 'R', 'W']);
+// Tiles the raycaster treats as walls. 'S' (secret tree) is collision-solid in
+// LEGEND and must also be a wall here, or it renders as an invisible blocker.
+const SOLID = new Set(['#', 'B', 'F', 'R', 'W', 'S']);
+
+// True if a tile blocks the first-person view. Exported for tests.
+export function isWallTile(ch) {
+  return SOLID.has(ch);
+}
 
 const WALLS = {
   '#': ['#3d5a2a', '#335024'], // tree
+  'S': ['#3d5a2a', '#335024'], // secret tree (looks like a tree; discovery is by dialogue)
   'B': ['#b98a5e', '#a57a50'], // building
   'F': ['#8a6a3a', '#7c5c30'], // fence
   'R': ['#8a8a8a', '#7c7c84'], // rock
