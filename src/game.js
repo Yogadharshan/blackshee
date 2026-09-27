@@ -27,7 +27,12 @@ export class Game {
     this.logOpen = false;
     this.near = null;
     this.playTime = 0;
-    this.noDoorUntil = 0;
+    // Portal/transition guard (per player — each client owns its own player).
+    // A door only fires after the player has stepped OFF every door tile, so
+    // arriving on a destination portal can't bounce you straight back.
+    this.portalArmed = true;     // re-armed once the player is not on a door tile
+    this.portalLocked = false;   // true during/just after a transition
+    this.portalLockUntil = 0;    // grace timestamp after arriving in a new map
     this.mounted = false;
     this.myId = (globalThis.crypto && typeof globalThis.crypto.randomUUID === 'function')
       ? globalThis.crypto.randomUUID()
@@ -203,23 +208,33 @@ export class Game {
     const blockers = this.world.npcs.map((n) => ({ px: n.px, py: n.py, w: 32, h: 32 }));
     this.player.update(this.keys, this.world.tiles, blockers, dt);
 
-    // Doors.
+    // Doors / portals (tile-polled). Guarded so a destination portal can't
+    // immediately trigger: the player must leave the portal tile to re-arm,
+    // plus a short time lock debounces rapid re-entry.
     const now = performance.now() / 1000;
-    if (now > this.noDoorUntil) {
-      const tx = Math.floor(this.player.cx / TILE);
-      const ty = Math.floor(this.player.cy / TILE);
-      const door = this.world.doorAt(tx, ty);
-      if (door) {
-        if (door.secret && !this.q.secret.discovered) {
-          // The secret tree hides its path until both players find it.
-        } else if (door.sealed && this.q.memories < this.q.required) {
-          this.say(DIALOGUE.gate_sealed);
-        } else {
-          this.world.setArea(door.to);
-          this.player.x = door.tx * TILE + 7;
-          this.player.y = door.ty * TILE + 5;
-          this.noDoorUntil = now + 0.35;
-        }
+    const tx = Math.floor(this.player.cx / TILE);
+    const ty = Math.floor(this.player.cy / TILE);
+    const door = this.world.doorAt(tx, ty);
+
+    // Re-arm only once the player has stepped off every portal tile.
+    if (!door) this.portalArmed = true;
+    // Release the transition lock after the destination grace period.
+    if (this.portalLocked && now >= this.portalLockUntil) this.portalLocked = false;
+
+    if (door && this.portalArmed && !this.portalLocked && now >= this.portalLockUntil) {
+      if (door.secret && !this.q.secret.discovered) {
+        // The secret tree hides its path until both players find it.
+      } else if (door.sealed && this.q.memories < this.q.required) {
+        this.portalArmed = false; // say it once per visit, not every frame
+        this.say(DIALOGUE.gate_sealed);
+      } else {
+        // Single transition: lock this player out of portals during the hop.
+        this.portalLocked = true;
+        this.portalArmed = false;
+        this.world.setArea(door.to);
+        this.player.x = door.tx * TILE + 7;
+        this.player.y = door.ty * TILE + 5;
+        this.portalLockUntil = performance.now() / 1000 + 0.75;
       }
     }
 

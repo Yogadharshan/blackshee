@@ -22,7 +22,9 @@ const teleport = (area, x, y) => {
   g.world.setArea(area);
   g.player.x = x * TILE + 7;
   g.player.y = y * TILE + 5;
-  g.noDoorUntil = 0;
+  g.portalArmed = true;
+  g.portalLocked = false;
+  g.portalLockUntil = 0;
 };
 
 // step through an open dialogue until it closes
@@ -35,6 +37,9 @@ const finishDialogue = () => {
   }
 };
 
+const busyWait = (ms) => { const until = performance.now() + ms; while (performance.now() < until) { /* spin */ } };
+const resetPortal = () => { g.portalArmed = true; g.portalLocked = false; g.portalLockUntil = 0; };
+
 check(g.mode === 'title', 'starts in title');
 g.advance = true; g.update(1 / 60);
 check(g.mode === 'play', 'Enter starts the game');
@@ -43,6 +48,26 @@ check(g.mode === 'play', 'Enter starts the game');
 teleport('village', 1, 8);
 g.update(1 / 60);
 check(g.world.area === 'farm', 'village > farm via west door');
+
+// PORTAL LOCK: fire once, no bounce at the destination, walk-away re-arms
+teleport('village', 1, 8); g.update(1 / 60);   // -> farm(22,8), standing on the return portal
+check(g.world.area === 'farm', 'portal transition fires exactly once');
+g.update(1 / 60);
+check(g.world.area === 'farm', 'arriving on a portal does not immediately bounce back');
+busyWait(850);
+g.update(1 / 60);
+check(g.world.area === 'farm', 'no bounce even after the grace period while standing on it');
+g.player.x = 12 * TILE + 7; g.player.y = 8 * TILE + 5; g.update(1 / 60);   // walk off
+check(g.portalArmed && g.world.area === 'farm', 'walking away from the portal re-arms it');
+g.player.x = 22 * TILE + 7; g.player.y = 8 * TILE + 5; g.update(1 / 60);   // walk back on
+check(g.world.area === 'village', 'portal works again after walking away');
+// per-player: the first player's guard must not affect a second player
+check(g.portalArmed === false, 'first player is still guarded after its own transition');
+const g2 = new Game(ctx);
+g2.mode = 'play';
+g2.world.setArea('village'); g2.player.x = 1 * TILE + 7; g2.player.y = 8 * TILE + 5;
+g2.update(1 / 60);
+check(g2.world.area === 'farm', "second player's portal is independent of the first player's lock");
 
 // farm flower
 teleport('farm', 16, 5);
@@ -144,7 +169,7 @@ g.syncPlayers([], { discovered: true, sixth: false });
 finishDialogue();
 check(g.q.secret.discovered, 'shared discovery applied');
 // tree flips to doorway and opens into Nowhere
-g.noDoorUntil = 0;
+resetPortal();
 g.update(1 / 60);
 check(g.world.area === 'hidden', 'secret tree becomes a doorway into Nowhere');
 // Sixth Memory from the Sheep Who Knows Too Much
@@ -158,21 +183,21 @@ check(g.q.secret.sixth, 'sixth memory is shared state');
 teleport('farm', 22, 8); g.update(1 / 60); // farm > village
 teleport('village', 12, 1); g.update(1 / 60); // village > forest
 teleport('forest', 22, 8);
-g.noDoorUntil = 0;
+resetPortal();
 g.update(1 / 60);
 check(g.world.area === 'shrine', `gate opens at 5/5 (memories=${g.q.memories})`);
 
 // bonus: gate sealed check at <5
 g.q.memories = 4;
 teleport('shrine', 1, 8); g.update(1 / 60);
-teleport('forest', 22, 8); g.noDoorUntil = 0;
+teleport('forest', 22, 8); resetPortal();
 g.update(1 / 60);
 check(g.world.area === 'forest' && g.dialogue.active, 'gate stays sealed below 5/5');
 finishDialogue();
 g.q.memories = 5;
 
 // ending: enter shrine, touch altar
-teleport('forest', 22, 8); g.noDoorUntil = 0; g.update(1 / 60);
+teleport('forest', 22, 8); resetPortal(); g.update(1 / 60);
 teleport('shrine', 12, 7);
 g.advance = true; g.update(1 / 60);
 check(g.dialogue.active, 'altar dialogue opens');
