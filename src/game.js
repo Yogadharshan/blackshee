@@ -41,8 +41,10 @@ export class Game {
     net.init((players, shared) => this.syncPlayers(players, shared));
     this.roomCode = net.room || this.roomCode;
     // Safety net: keep transmitting even if rAF is paused (backgrounded tab).
+    // Sends on the title screen too, so a player who has joined a room but not
+    // started yet still shows up for the other player. (net.send no-ops offline.)
     this.netTimer = setInterval(() => {
-      if (this.mode === 'play') this.sendState();
+      this.sendState();
     }, 120);
     this.attachInput();
   }
@@ -57,9 +59,8 @@ export class Game {
         if (e.key === 'Escape') {
           this.roomUI.active = false;
         } else if (e.key === 'Enter') {
-          this.joinRoom(this.roomUI.code);
-        } else if (e.key === 'g' || e.key === 'G') {
-          this.joinRoom(newRoomCode());
+          // Empty field = create a fresh room; typed text = join that room.
+          this.joinRoom(this.roomUI.code.length ? this.roomUI.code : newRoomCode());
         } else if (e.key === 'Backspace') {
           this.roomUI.code = this.roomUI.code.slice(0, -1);
         } else if (e.key.length === 1 && /[a-zA-Z0-9]/.test(e.key)) {
@@ -410,8 +411,8 @@ function drawRoomInput(ctx, ui) {
   ctx.fillText('CO-OP ROOM', 480, 232);
   ctx.fillStyle = '#9aa0a8';
   ctx.font = '13px "Courier New", monospace';
-  ctx.fillText('Type a friend\'s code to join — or press [G]', 480, 258);
-  ctx.fillText('to create a fresh room code.', 480, 276);
+  ctx.fillText('Type a friend\'s code to join,', 480, 258);
+  ctx.fillText('or leave it empty and press Enter to create a room.', 480, 276);
 
   // input box
   ctx.fillStyle = '#10141a';
@@ -425,7 +426,7 @@ function drawRoomInput(ctx, ui) {
 
   ctx.fillStyle = '#f2e9c9';
   ctx.font = 'bold 13px "Courier New", monospace';
-  ctx.fillText('[Enter] join   [G] new code   [Esc] back', 480, 372);
+  ctx.fillText('[Enter] join (empty = create)   [Esc] back', 480, 372);
   ctx.textAlign = 'left';
 }
 

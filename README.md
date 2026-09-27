@@ -35,8 +35,9 @@ Two secrets hide off the path. Finding them is optional — and encouraged.
 
 ### Co-op
 
-Open `http://localhost:8080?room=1` in two tabs (or two machines on the network).
-Press `C` on the title screen for a room code, or append `?room=<code>` to join directly.
+Open `http://localhost:8080` in two tabs (or two machines on the network).
+Press `C` on the title screen: with the field empty, `Enter` creates a new room code;
+type a friend's code and `Enter` joins it. Or append `?room=<code>` to join directly.
 If the relay is down, the game plays single-player — networking never blocks play.
 
 ### Mount + first-person
