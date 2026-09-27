@@ -110,6 +110,21 @@ clearSave();
 check(new Game(ctx).hasSave === false, 'New game leaves no save');
 check((() => { const n = new Game(ctx); n.advance = true; n.update(1 / 60); return n.mode === 'play' && n.q.memories === 0; })(), 'fresh run still just presses Enter');
 
+// --- "Saved" blip -----------------------------------------------------------
+const blip = new Game(ctx);
+blip.mode = 'play';
+blip.persist();
+check(blip.saveFlash > 0, 'event save raises the blip');
+blip.update(1 / 60);
+check(blip.saveFlash > 0 && blip.saveFlash < 1.4, 'blip fades over time');
+const noStorage = globalThis.localStorage;
+globalThis.localStorage = undefined;
+const quiet = new Game(ctx);
+quiet.saveFlash = 0;
+quiet.persist();
+check(quiet.saveFlash === 0, 'no-storage save shows no blip');
+globalThis.localStorage = noStorage;
+
 globalThis.localStorage = realLS;
 console.log(fail === 0 ? '\nSAVE PASS' : `\nSAVE FAIL (${fail})`);
 process.exit(fail === 0 ? 0 : 1);

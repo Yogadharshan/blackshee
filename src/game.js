@@ -51,6 +51,8 @@ export class Game {
     // Single-player save: offer Continue on the title if one exists.
     this.hasSave = hasSave();
     this.saveTimer = 0;
+    // Seconds left on the "Saved" blip (only meaningful saves flash, not autosave).
+    this.saveFlash = 0;
     // Guided NPC conversation (Phase 2). Modal chooser shown after an NPC's
     // authored opening dialogue; wording only, never mutates game state.
     this.ask = { active: false, npcId: null, npcName: '', intents: [], index: 0, answer: null, answerIntent: null, thinking: false };
@@ -214,7 +216,13 @@ export class Game {
     this.player.speed = this.mounted ? 300 : 170;
     this.player.moving = false;
     sfx.done();
-    writeSave(this);
+    this.persist();
+  }
+
+  // Event-driven save: persists and shows the brief "Saved" blip. Autosave
+  // uses writeSave directly so it stays quiet.
+  persist() {
+    if (writeSave(this)) this.saveFlash = 1.4;
   }
 
   // Broadcast our state to the relay. Safe to call at any time (no-op offline).
@@ -328,6 +336,9 @@ export class Game {
     this.saveTimer += dt;
     if (this.saveTimer > 2) { this.saveTimer = 0; writeSave(this); }
 
+    // Fade the "Saved" blip.
+    if (this.saveFlash > 0) this.saveFlash = Math.max(0, this.saveFlash - dt);
+
     // Movement (NPC bodies block like walls).
     const blockers = this.world.npcs.map((n) => ({ px: n.px, py: n.py, w: 32, h: 32 }));
     this.player.update(this.keys, this.world.tiles, blockers, dt);
@@ -359,7 +370,7 @@ export class Game {
         this.player.x = door.tx * TILE + 7;
         this.player.y = door.ty * TILE + 5;
         this.portalLockUntil = performance.now() / 1000 + 0.75;
-        writeSave(this);
+        this.persist();
       }
     }
 
@@ -379,7 +390,7 @@ export class Game {
           this.maybeAnnounceSeal();
           // Opening stays authored; guided questions are the optional extra.
           this.openGuided(npc.id, npc.name);
-          writeSave(this);
+          this.persist();
         });
       } else {
         const wasActive = this.dialogue.active;
@@ -389,11 +400,11 @@ export class Game {
           this.dialogue.onDone = () => {
             if (prev) prev();
             this.maybeAnnounceSeal();
-            writeSave(this);
+            this.persist();
           };
         } else if (!wasActive) {
           this.maybeAnnounceSeal();
-          writeSave(this);
+          this.persist();
         }
       }
     }
@@ -448,8 +459,26 @@ export class Game {
       drawHud(ctx, this);
       if (this.dialogue.active) drawDialogueBox(ctx, this.dialogue);
       else if (this.ask.active) drawAskMenu(ctx, this.ask, this.ask.npcName);
+      if (this.saveFlash > 0) this.drawSaveBlip(ctx);
     }
     if (this.mode === 'ending') drawEnding(ctx, this);
+  }
+
+  // Brief "Saved" blip, top-right, fading out.
+  drawSaveBlip(ctx) {
+    const a = Math.min(1, this.saveFlash / 0.5);
+    const label = 'Saved ✓';
+    ctx.save();
+    ctx.globalAlpha = a;
+    ctx.textAlign = 'right';
+    ctx.font = 'bold 13px "Courier New", monospace';
+    const w = ctx.measureText(label).width;
+    const right = 946;
+    ctx.fillStyle = 'rgba(20,22,26,0.72)';
+    ctx.fillRect(right - w - 12, 12, w + 20, 22);
+    ctx.fillStyle = '#8fd18f';
+    ctx.fillText(label, right - 6, 28);
+    ctx.restore();
   }
 
   drawHotspot(ctx, hs) {

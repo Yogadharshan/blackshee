@@ -93,6 +93,9 @@ try {
   check(st.mem === 2 && st.flowers === 'active' && st.area === 'meadow', 'run restored after reload');
   check(st.x === 321 && st.y === 222 && st.mounted === true, 'position + mount restored after reload');
 
+  // Event-driven save raises the "Saved" blip.
+  check(await evalIn(`(() => { window.__game.persist(); return window.__game.saveFlash > 0; })()`), 'event save shows the Saved blip');
+
   // New game clears it.
   await evalIn(`location.href = ${JSON.stringify(ROOT)}`);
   await sleep(2200);
