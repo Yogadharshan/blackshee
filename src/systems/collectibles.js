@@ -1,6 +1,7 @@
 import { DIALOGUE } from '../data/dialogue.js';
 import { rewardFor } from './quests.js';
 import { sfx } from './sfx.js';
+import { advanceStory } from './story.js';
 
 export function dialogLines(key) {
   return DIALOGUE[key] || [['', '...baa?']];
@@ -14,6 +15,8 @@ export function handleHotspot(game, hs) {
       if (q.collected[hs.item]) return;
       q.collected[hs.item] = true;
       q.memories = Math.min(q.required, q.memories + 1);
+      // First Memory is the one stage-1 beat defined by game state (§23).
+      advanceStory(game, 'STAGE_1_FIRST_MEMORY');
       sfx.pickup();
       game.say(dialogLines(hs.dialog));
       break;

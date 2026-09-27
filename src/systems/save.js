@@ -76,6 +76,13 @@ export function applySave(game, data) {
       secret: { ...base.secret, ...(data.q.secret || {}) },
       side: { ...base.side, ...(data.q.side || {}) },
       collected: { ...(data.q.collected || {}) },
+      // Additive: an older save without q.story loads with the base story
+      // (stage 0). No Memory-derived floor — narrative state is its own thing.
+      story: {
+        ...base.story,
+        ...(data.q.story || {}),
+        choices: { ...base.story.choices, ...((data.q.story && data.q.story.choices) || {}) },
+      },
     };
     if (data.area) game.world.setArea(data.area);
     if (typeof data.x === 'number') game.player.x = data.x;

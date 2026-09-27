@@ -59,6 +59,7 @@ const g3 = fakeGame();
 applySave(g3, partial);
 check(g3.q.side.friend === 'idle' && g3.q.side.rock === 'idle' && g3.q.side.flowers === 'done', 'partial save merges defaults for missing flags');
 check(g3.q.secret && g3.q.secret.sixth === false, 'partial save gets the secret sub-object');
+check(g3.q.story && g3.q.story.stage === 0, 'partial save gets the story sub-object (stage 0)');
 
 // --- mounted restore requires ownership -------------------------------------
 g1.q.mountOwned = true;

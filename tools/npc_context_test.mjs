@@ -18,15 +18,26 @@ const makeGame = (memories, mode = 'play') => {
   return { q, mode, world: { def: { name: 'Sheep Village' } } };
 };
 
+// Narrative stage is separate from collection; tests set it explicitly.
+const makeStory = (stage, mode = 'play') => {
+  const g = makeGame(0, mode);
+  g.q.story.stage = stage;
+  return g;
+};
+
 const factsOf = (ctx) => ctx.knownFacts.map((f) => f.text);
 const hasGrandchildren = (ctx) => factsOf(ctx).some((t) => /grandchild/i.test(t));
 
-// --- Baa lore stage derivation ---------------------------------------------
-check(baaStage(makeGame(0)) === 0, 'baaStage: 0 memories -> stage 0');
-check(baaStage(makeGame(1)) === 1, 'baaStage: 1 memory -> stage 1');
-check(baaStage(makeGame(3)) === 3, 'baaStage: 3 memories -> stage 3');
-check(baaStage(makeGame(5)) === 4, 'baaStage: 5 memories -> stage 4 (reveal still pending)');
-check(baaStage(makeGame(5, 'ending')) === 5, 'baaStage: ending -> stage 5 (lineage revealed)');
+// --- Narrative stage comes from story state, not collection ----------------
+check(baaStage(makeGame(0)) === 0, 'baaStage: fresh game -> stage 0');
+check(baaStage(makeGame(3)) === 0, 'baaStage: collection alone does not advance the narrative');
+const fiveMemTwoStory = makeGame(5);
+fiveMemTwoStory.q.story.stage = 2;
+check(baaStage(fiveMemTwoStory) === 2, 'baaStage: story stage wins over the Memory count');
+check(baaStage(makeStory(1)) === 1, 'baaStage: story stage 1');
+check(baaStage(makeStory(4)) === 4, 'baaStage: story stage 4');
+check(baaStage(makeStory(5)) === 5, 'baaStage: story stage 5');
+check(baaStage(makeStory(9)) === 5, 'baaStage: clamped above 5');
 check(baaStage(null) === 0, 'baaStage: no game -> stage 0');
 
 // --- Emotional state derivation --------------------------------------------
@@ -43,26 +54,26 @@ check(early.emotionalState === 'playful', 'early: emotionalState is playful');
 check(early.knownFacts.length > 0, 'early: elder still knows stage-0 facts');
 check(!('q' in early), 'early: raw game state (q) is not exposed');
 
-const oneMemory = buildContext('elder', makeGame(1));
+const oneMemory = buildContext('elder', makeStory(1));
 check(!hasGrandchildren(oneMemory), 'stage 1: grandchildren revelation still absent');
 check(oneMemory.baaStage === 1, 'stage 1: baaStage is 1');
 
 // --- Appropriate fact becomes available later ------------------------------
-const late = buildContext('elder', makeGame(5));
-check(!hasGrandchildren(late), 'late (5 memories): grandchildren still gated out');
+const late = buildContext('elder', makeStory(4));
+check(!hasGrandchildren(late), 'late (stage 4): grandchildren still gated out');
 check(factsOf(late).some((t) => /familiar about the two of you/i.test(t)),
   'late: stage-4 family-clue fact is now present');
 check(late.baaStage === 4, 'late: baaStage is 4');
 
-const resolved = buildContext('elder', makeGame(5, 'ending'));
+const resolved = buildContext('elder', makeStory(5, 'ending'));
 check(hasGrandchildren(resolved), 'resolution: grandchildren revelation is now present');
 check(resolved.baaStage === 5, 'resolution: baaStage is 5');
 check(resolved.emotionalState === 'peaceful', 'resolution: emotionalState is peaceful');
 
 // --- Gating invariant across every stage and persona -----------------------
 let violations = 0;
-for (let m = 0; m <= 5; m++) {
-  const g = makeGame(m, m === 5 ? 'ending' : 'play');
+for (let s = 0; s <= 5; s++) {
+  const g = makeStory(s, s === 5 ? 'ending' : 'play');
   const stage = baaStage(g);
   for (const id of Object.keys(PERSONAS)) {
     for (const f of buildContext(id, g).knownFacts) {
@@ -73,7 +84,7 @@ for (let m = 0; m <= 5; m++) {
 check(violations === 0, 'invariant: no fact above its stage appears in any context');
 
 // --- NPC knowledge stays limited to the NPC --------------------------------
-const keeper = buildContext('mountKeeper', makeGame(5, 'ending'));
+const keeper = buildContext('mountKeeper', makeStory(5, 'ending'));
 check(!hasGrandchildren(keeper), 'mount keeper never receives the grandchildren fact');
 check(NPC_KNOWLEDGE.mountKeeper.every((f) => !/grandchild/i.test(f.text)),
   'mount keeper knowledge table has no grandchildren line');

@@ -5,24 +5,22 @@
 // raw Game. This is what stops the model from seeing (or touching) the world,
 // quests, inventory, networking or maps.
 //
-// baaStage()/emotionalState() are derived here, deterministically, from the
-// existing Memory progression. The model never calculates them itself.
+// baaStage() reads the authored story state (systems/story.js); emotionalState()
+// is still derived from Memory progression for now (the §5 arc lands in a later
+// phase). The model never calculates either one itself.
 
 import { PERSONAS, DEFAULT_PERSONA, NPC_KNOWLEDGE } from '../data/npc_personas.js';
+import { storyStage } from './story.js';
 
-// Baa lore progression, derived from the existing main-quest state.
+// Baa lore progression: the authored narrative stage, NOT the Memory count.
 // 0 unknown · 1 vague memory · 2 Baa existed · 3 Baa's life
 // 4 family clues · 5 lineage revealed
 //
-// Memories 1–5 walk stages 1–4; the actual lineage reveal (stage 5) only
-// exists once the game has reached its resolution (the ending), so the
-// "grandchildren" fact can never surface mid-game. This is intentionally not
-// tied to the optional secret Memory — it stays deterministic on the main path.
+// q.story.stage is the single source of truth, advanced only by named story
+// beats (systems/story.js). Collection progress (q.memories) is deliberately
+// ignored here so the two cannot drift back together.
 export function baaStage(game) {
-  if (!game) return 0;
-  if (game.mode === 'ending') return 5;
-  const memories = (game.q && game.q.memories) || 0;
-  return Math.max(0, Math.min(4, memories));
+  return storyStage(game);
 }
 
 // Intended emotional arc as data: early → middle → late → resolution.

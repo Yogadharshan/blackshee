@@ -123,6 +123,7 @@ check(Object.isFrozen(seen), 'provider context is frozen');
 const s9 = createNPCDialogueService({ localFactory: () => fakeLocal({ async generate(c) { c.baaStage = 99; return 'hacked'; } }) });
 await s9.initialize(); await s9.ready();
 const g9 = makeGame(1);
+g9.q.story.stage = 1;
 const ctx9 = buildContext('elder', g9, 'WHO_IS_BAA');
 const r9 = await s9.generate(ctx9);
 check(typeof r9 === 'string' && r9 !== 'hacked', 'a mutating provider is rejected -> scripted fallback');

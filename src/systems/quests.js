@@ -19,6 +19,10 @@ export function createQuestState() {
     elderTalked: false,
     mountOwned: false,
     secret: { discovered: false, sixth: false, treePokes: 0, sheepTalk: 0 },
+    // Narrative understanding, kept separate from collection progress
+    // (memories/collected). Advanced only by named story beats via
+    // systems/story.js; never derived from the Memory count.
+    story: { stage: 0, twinRevealed: false, choices: {} },
   };
 }
 
