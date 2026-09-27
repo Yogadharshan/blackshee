@@ -42,7 +42,10 @@ function evalIn(wsUrl, expression) {
       const m = JSON.parse(raw.toString());
       if (m.id !== id) return;
       ws.close();
-      if (m.result && m.result.exceptionDetails) return reject(new Error(m.result.exceptionDetails.text));
+      if (m.result && m.result.exceptionDetails) {
+        const d = m.result.exceptionDetails;
+        return reject(new Error('page threw: ' + ((d.exception && d.exception.description) || d.text || 'unknown')));
+      }
       resolve(m.result && m.result.result ? m.result.result.value : undefined);
     });
     ws.on('error', reject);
@@ -51,14 +54,25 @@ function evalIn(wsUrl, expression) {
 }
 
 const started = Date.now();
+async function waitForGame(wsUrl, label) {
+  for (let i = 0; i < 40; i++) {
+    let r = false;
+    try { r = await evalIn(wsUrl, `typeof window.__game !== 'undefined' && !!window.__game.others`); } catch { /* page busy; retry */ }
+    if (r === true) return;
+    await sleep(500);
+  }
+  throw new Error(label + ' never booted the game');
+}
 try {
   launch(9333);
   launch(9334);
   const a = await pageTarget(9333);
   const b = await pageTarget(9334);
-  await sleep(3000); // connect + exchange a few state frames
+  await waitForGame(a, 'tabA');
+  await waitForGame(b, 'tabB');
+  await sleep(1500); // connect + exchange a few state frames
 
-  const probe = `(() => { const g = window.__game; return { others: g ? g.others.size : -1, room: g && g.roomCode, me: g && g.myId, playTime: g && g.playTime, connected: window.__net ? window.__net.connected : null, netRoom: window.__net ? window.__net.room : null }; })()`;
+  const probe = `(() => { const g = window.__game; return { others: g && g.others ? g.others.size : -1, room: g && g.roomCode, me: g && g.myId, playTime: g && g.playTime, connected: window.__net ? window.__net.connected : null, netRoom: window.__net ? window.__net.room : null }; })()`;
   const A = await evalIn(a, probe);
   const B = await evalIn(b, probe);
 
@@ -69,7 +83,7 @@ try {
   await sleep(400);
   const colorA = await evalIn(a, `(() => {
     const g = window.__game;
-    const o = [...g.others.values()][0];
+    const o = g && g.others ? [...g.others.values()][0] : null;
     if (!o) return null;
     const c = document.getElementById('game').getContext('2d');
     const cx = Math.round(o.x + 13), cy = Math.round(o.y + 15);
