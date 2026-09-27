@@ -252,6 +252,9 @@ export class Game {
       id: this.myId,
       x: this.player.x,
       y: this.player.y,
+      // Canonical area id. Maps are independent coordinate spaces, so the
+      // remote must know which map this position belongs to before drawing it.
+      area: this.world.area,
       dir: { x: this.player.dir.x, y: this.player.dir.y },
       mounted: this.mounted,
       mountId: this.mounted ? 'sheep' : null,
@@ -290,10 +293,21 @@ export class Game {
     }
   }
 
+  // Remote players standing on the local map. Rendering reads only this, so a
+  // remote on another map is skipped entirely (no sprite, name tag, or mount)
+  // rather than drawn at coordinates that belong to a different coordinate space.
+  remotePlayers() {
+    const area = this.world.area;
+    const out = [];
+    for (const o of this.others.values()) if (o.area === area) out.push(o);
+    return out;
+  }
+
   // Incoming other-player states + shared room state from the relay.
   syncPlayers(players, shared) {
     const prev = this.others;
     const next = new Map();
+    const localArea = this.world.area;
     for (const pl of players) {
       if (pl.id === this.myId) continue;
       const old = prev.get(pl.id);
@@ -301,9 +315,15 @@ export class Game {
       // A brand-new id (or a large jump) starts fresh at the received position —
       // this is what keeps reconnect from interpolating from a stale location.
       const far = old && (Math.abs(old.rx - pl.x) > REMOTE_SNAP_DIST || Math.abs(old.ry - pl.y) > REMOTE_SNAP_DIST);
+      // Maps have independent coordinate spaces, so never ease across an area
+      // change: reset the render position whenever the remote switches map or is
+      // currently on a map we are not on. This prevents old-map coordinates from
+      // bleeding into the local map.
+      const sameArea = !!old && old.area === pl.area;
+      const snap = !old || far || !sameArea || pl.area !== localArea;
       next.set(pl.id, Object.assign({}, pl, {
-        rx: !old || far ? pl.x : old.rx,
-        ry: !old || far ? pl.y : old.ry,
+        rx: snap ? pl.x : old.rx,
+        ry: snap ? pl.y : old.ry,
       }));
     }
     this.others = next;
@@ -494,7 +514,9 @@ export class Game {
 
     // Remote co-op players (black sheep, like you), drawn at the eased render
     // position. A mounted remote rides a white Mount Sheep. Presentation only.
-    for (const o of this.others.values()) {
+    // Only remotes on the local map are drawn; others live in another
+    // coordinate space and are filtered out before any drawing happens.
+    for (const o of this.remotePlayers()) {
       if (o.mounted) drawRiderSheep(ctx, o.rx + 13, o.ry + 15);
       else drawSheep(ctx, o.rx + 13, o.ry + 15, true);
       drawNameTag(ctx, o.rx + 13, o.ry - 3, remoteTagText());

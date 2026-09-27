@@ -18,11 +18,11 @@ g.mode = 'play';
 g.myId = 'me';
 
 // --- interpolation ----------------------------------------------------------
-g.syncPlayers([{ id: 'r1', x: 100, y: 100, mounted: false }], null);
+g.syncPlayers([{ id: 'r1', x: 100, y: 100, area: 'village', mounted: false }], null);
 check(g.others.get('r1').rx === 100 && g.others.get('r1').ry === 100,
   'new remote starts at the received position (no stale interpolation)');
 
-g.syncPlayers([{ id: 'r1', x: 140, y: 100, mounted: false }], null);
+g.syncPlayers([{ id: 'r1', x: 140, y: 100, area: 'village', mounted: false }], null);
 check(g.others.get('r1').x === 140 && g.others.get('r1').rx === 100,
   'network target updates while the render position eases from the old spot');
 
@@ -35,13 +35,13 @@ check(Math.abs(g.others.get('r1').rx - 140) < 1, 'render position converges to t
 check(g.others.get('r1').rx <= 140, 'render position does not overshoot');
 
 // --- snap on teleport -------------------------------------------------------
-g.syncPlayers([{ id: 'r1', x: 900, y: 100, mounted: false }], null);
+g.syncPlayers([{ id: 'r1', x: 900, y: 100, area: 'village', mounted: false }], null);
 check(g.others.get('r1').rx === 900, 'a large jump snaps instead of sliding (area change)');
 
 // --- mounted pass-through ---------------------------------------------------
-g.syncPlayers([{ id: 'r1', x: 900, y: 100, mounted: true }], null);
+g.syncPlayers([{ id: 'r1', x: 900, y: 100, area: 'village', mounted: true }], null);
 check(g.others.get('r1').mounted === true, 'mounted state flows through unchanged');
-g.syncPlayers([{ id: 'r1', x: 900, y: 100, mounted: false }], null);
+g.syncPlayers([{ id: 'r1', x: 900, y: 100, area: 'village', mounted: false }], null);
 check(g.others.get('r1').mounted === false, 'dismount flows through unchanged');
 
 // --- identity label ---------------------------------------------------------
@@ -52,7 +52,7 @@ g.onNetStatus('reconnecting', {});
 check(g.others.size === 0, 'disconnect clears the remote visual state');
 
 g.onNetStatus('open', { recovered: true });
-g.syncPlayers([{ id: 'r2', x: 300, y: 300, mounted: true }], null);
+g.syncPlayers([{ id: 'r2', x: 300, y: 300, area: 'village', mounted: true }], null);
 const r2 = g.others.get('r2');
 check(r2.rx === 300 && r2.ry === 300 && r2.mounted === true,
   'reconnect appears cleanly at the new position with current mounted state');

@@ -89,7 +89,7 @@ wss.on('connection', (ws, req) => {
     try { msg = JSON.parse(raw.toString()); } catch { return; }
     if (msg.t === 'state' && msg.id) {
       r.states.set(msg.id, {
-        id: msg.id, x: msg.x, y: msg.y, dir: msg.dir, mounted: msg.mounted,
+        id: msg.id, x: msg.x, y: msg.y, area: msg.area || null, dir: msg.dir, mounted: msg.mounted,
         mountId: msg.mountId || null, __ws: ws,
         z: msg.secretIn ? 1 : 0, p: msg.poke ? 1 : 0, sx: msg.sixth ? 1 : 0,
       });
