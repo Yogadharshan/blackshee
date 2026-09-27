@@ -48,6 +48,9 @@ export class Game {
     this.revealShown = false;
     this.roomUI = { active: false, code: '', joined: false };
     this.roomCode = '';
+    // Co-op connection health (net.js reports connecting/open/reconnecting).
+    this.netStatus = net.status;
+    this.netFlash = 0;
     // Single-player save: offer Continue on the title if one exists.
     this.hasSave = hasSave();
     this.saveTimer = 0;
@@ -56,7 +59,10 @@ export class Game {
     // Guided NPC conversation (Phase 2). Modal chooser shown after an NPC's
     // authored opening dialogue; wording only, never mutates game state.
     this.ask = { active: false, npcId: null, npcName: '', intents: [], index: 0, answer: null, answerIntent: null, thinking: false };
-    net.init((players, shared) => this.syncPlayers(players, shared));
+    net.init(
+      (players, shared) => this.syncPlayers(players, shared),
+      (status, info) => this.onNetStatus(status, info),
+    );
     this.roomCode = net.room || this.roomCode;
     // Safety net: keep transmitting even if rAF is paused (backgrounded tab).
     // Sends on the title screen too, so a player who has joined a room but not
@@ -251,6 +257,14 @@ export class Game {
     sfx.done();
   }
 
+  // Connection health from the relay. net.js owns reconnect; here we reflect it
+  // and drop ghost partners while disconnected so they don't linger on screen.
+  onNetStatus(status, info) {
+    this.netStatus = status;
+    if (status !== 'open') this.others = new Map();
+    if (status === 'open' && info && info.recovered) this.netFlash = 1.6;
+  }
+
   // Incoming other-player states + shared room state from the relay.
   syncPlayers(players, shared) {
     const next = new Map();
@@ -338,6 +352,7 @@ export class Game {
 
     // Fade the "Saved" blip.
     if (this.saveFlash > 0) this.saveFlash = Math.max(0, this.saveFlash - dt);
+    if (this.netFlash > 0) this.netFlash = Math.max(0, this.netFlash - dt);
 
     // Movement (NPC bodies block like walls).
     const blockers = this.world.npcs.map((n) => ({ px: n.px, py: n.py, w: 32, h: 32 }));
@@ -460,6 +475,7 @@ export class Game {
       if (this.dialogue.active) drawDialogueBox(ctx, this.dialogue);
       else if (this.ask.active) drawAskMenu(ctx, this.ask, this.ask.npcName);
       if (this.saveFlash > 0) this.drawSaveBlip(ctx);
+      if (this.netFlash > 0) this.drawNetBlip(ctx);
     }
     if (this.mode === 'ending') drawEnding(ctx, this);
   }
@@ -478,6 +494,24 @@ export class Game {
     ctx.fillRect(right - w - 12, 12, w + 20, 22);
     ctx.fillStyle = '#8fd18f';
     ctx.fillText(label, right - 6, 28);
+    ctx.restore();
+  }
+
+  // Brief "Reconnected" blip, top-right under the Saved blip, fading out.
+  drawNetBlip(ctx) {
+    const a = Math.min(1, this.netFlash / 0.5);
+    const label = 'Reconnected ✓';
+    ctx.save();
+    ctx.globalAlpha = a;
+    ctx.textAlign = 'right';
+    ctx.font = 'bold 13px "Courier New", monospace';
+    const w = ctx.measureText(label).width;
+    const right = 946;
+    const y = this.saveFlash > 0 ? 38 : 12;
+    ctx.fillStyle = 'rgba(20,22,26,0.72)';
+    ctx.fillRect(right - w - 12, y, w + 20, 22);
+    ctx.fillStyle = '#8fd18f';
+    ctx.fillText(label, right - 6, y + 16);
     ctx.restore();
   }
 
@@ -566,6 +600,11 @@ export class Game {
       ctx.fillStyle = '#f2e9c9';
       ctx.font = 'bold 14px "Courier New", monospace';
       ctx.fillText('[Enter] begin', 480, 566);
+      if (this.netStatus !== 'open') {
+        ctx.fillStyle = '#e0a35a';
+        ctx.font = 'bold 13px "Courier New", monospace';
+        ctx.fillText(this.netStatus === 'reconnecting' ? 'Reconnecting to the room…' : 'Connecting to the room…', 480, 588);
+      }
     }
     // Optional local SLM status (never blocks play).
     if (npcDialogue.status === 'loading') {

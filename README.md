@@ -47,6 +47,11 @@ Press `C` on the title screen: with the field empty, `Enter` creates a new room 
 type a friend's code and `Enter` joins it. Or append `?room=<code>` to join directly.
 If the relay is down, the game plays single-player — networking never blocks play.
 
+**Reconnect:** if the connection drops mid-run, the HUD shows `Reconnecting…` (the title shows
+it too), the partner is cleared instead of lingering, and the client keeps retrying the same
+room with backoff until the relay returns — no reload needed. On recovery a `Reconnected ✓`
+blip appears. A manual leave stops the retries.
+
 ### Mount + first-person
 
 Talk to the Elder, then visit the Mount Keeper in the Farm to receive the Mount Sheep™.

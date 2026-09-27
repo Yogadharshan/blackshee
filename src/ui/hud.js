@@ -46,12 +46,26 @@ export function drawHud(ctx, game) {
     ctx.fillText('Press M to mount', 582, 60);
   }
 
-  // Room chip (co-op)
+  // Room chip (co-op) + connection status
   if (game.roomCode) {
     panel(ctx, 10, 594, 130, 26);
     ctx.fillStyle = '#7fa66a';
     ctx.font = 'bold 12px "Courier New", monospace';
     ctx.fillText(`ROOM ${game.roomCode}`, 22, 612);
+
+    if (game.netStatus !== 'open') {
+      const label = game.netStatus === 'reconnecting' ? 'Reconnecting…'
+        : game.netStatus === 'connecting' ? 'Connecting…' : 'Offline';
+      panel(ctx, 150, 594, 210, 26);
+      ctx.fillStyle = '#e0a35a';
+      ctx.font = 'bold 12px "Courier New", monospace';
+      ctx.fillText(label, 162, 612);
+    } else if (game.others && game.others.size === 0) {
+      panel(ctx, 150, 594, 236, 26);
+      ctx.fillStyle = '#9aa0a8';
+      ctx.font = '12px "Courier New", monospace';
+      ctx.fillText('Waiting for the other sheep…', 162, 612);
+    }
   }
 
   // Interact hint
