@@ -70,6 +70,11 @@ fully playable. The game never waits on the model.
 
 Only the Elder uses the local model for now; all other NPCs stay scripted.
 
+**Frozen (2026-09-27).** This AI layer is complete and won't be extended. It is optional
+flavor only: with it off (or unreachable), the guided Q&A and every NPC line still work
+via the scripted answers. If the weight CDN is blocked on your network, that's expected —
+the game just stays scripted.
+
 ## Deploy
 
 The game deploys anywhere that runs a long-lived Node process. It is one process, one

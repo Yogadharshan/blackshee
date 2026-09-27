@@ -1,5 +1,13 @@
 // NPC dialogue service: produces NPC *wording* only.
 //
+// ── FROZEN ───────────────────────────────────────────────────────────────────
+// This optional AI layer is complete and frozen (2026-09-27). It is not
+// required for play and is fully fallback-governed. Do not extend it: add no
+// providers, no NPCs, no free chat. Known limitation — the Hugging Face weight
+// CDN (us.aws.cdn.hf.co) is unreachable on some networks, so the local model
+// stays failed and scripted answers govern. See docs/ai npc build.md.
+// ─────────────────────────────────────────────────────────────────────────────
+//
 // Boundary rule: this layer NEVER mutates game state. Quest progression,
 // item/Memory changes and all flags stay in talkFor()/rewardFor() (see
 // systems/quests.js). The service is handed a constrained context (see

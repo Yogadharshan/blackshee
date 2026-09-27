@@ -1,5 +1,11 @@
 // Optional browser-local SLM provider for NPC dialogue.
 //
+// ── FROZEN ───────────────────────────────────────────────────────────────────
+// Complete and frozen (2026-09-27). Do not extend: one model, one config, no
+// model selection, no retries. Remaining work (if ever) is environmental, not
+// code — self-host weights under models/ and open with ?localmodel=1.
+// ─────────────────────────────────────────────────────────────────────────────
+//
 // This is the ONLY file allowed to reference Transformers.js, and it does so
 // via a *guarded dynamic import* — never a static/top-level import, so the game
 // boots fine with no network and no WebGPU. Everything here fails closed: on
