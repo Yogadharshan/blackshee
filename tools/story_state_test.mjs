@@ -5,6 +5,7 @@ import { createQuestState } from '../src/systems/quests.js';
 import { STORY_BEATS } from '../src/data/story_beats.js';
 import {
   MULTIPLAYER_LOCKED, storyStage, advanceStory, twinRevealed, choose, choice, hasChoice,
+  hasFragment, fragmentCount, recordFragment,
 } from '../src/systems/story.js';
 import { handleHotspot } from '../src/systems/collectibles.js';
 import { rewardFor } from '../src/systems/quests.js';
@@ -82,6 +83,26 @@ check(STORY_BEATS.every((b) => typeof b.id === 'string' && b.stage >= 0),
   'every beat has an id and a stage');
 check(new Set(STORY_BEATS.map((b) => b.id)).size === STORY_BEATS.length, 'beat ids are unique');
 
+// --- fragments: accumulated understanding, order-independent, monotonic -----
+const fr = game();
+check(fragmentCount(fr) === 0 && !hasFragment(fr, 'frag_object'), 'fresh: no fragments heard');
+check(recordFragment(fr, 'frag_object') === true, 'recording a new fragment returns true');
+check(storyStage(fr) === 2, 'first fragment -> STAGE_2_FRAGMENTS');
+check(recordFragment(fr, 'frag_object') === false && fragmentCount(fr) === 1,
+  're-recording the same fragment is a no-op');
+recordFragment(fr, 'frag_habit');
+check(storyStage(fr) === 2, 'two fragments still stage 2');
+recordFragment(fr, 'frag_helped');
+check(storyStage(fr) === 3, 'third fragment -> STAGE_3_BAA_LIFE');
+recordFragment(fr, 'frag_place');
+recordFragment(fr, 'frag_incorrect');
+check(storyStage(fr) === 4 && fragmentCount(fr) === 5, 'all five fragments -> STAGE_4_FORGOTTEN');
+
+const frDeep = game();
+frDeep.q.story.stage = 4;
+recordFragment(frDeep, 'frag_object');
+check(storyStage(frDeep) === 4, 'a fragment cannot regress a later story stage');
+
 // --- save round-trip + old-save compatibility -------------------------------
 const store = new Map();
 const realLS = globalThis.localStorage;
@@ -96,12 +117,14 @@ const a = game();
 a.q.story.stage = 3;
 a.q.story.twinRevealed = true;
 choose(a, 'TEST_CHOICE', 'OPT_A');
+recordFragment(a, 'frag_object');
 writeSave(a);
 const b = game();
 applySave(b, loadSave());
 check(b.q.story.stage === 3, 'save: story stage restored');
 check(b.q.story.twinRevealed === true, 'save: twinRevealed restored');
 check(choice(b, 'TEST_CHOICE') === 'OPT_A', 'save: named choice restored');
+check(hasFragment(b, 'frag_object') && fragmentCount(b) === 1, 'save: fragments restored');
 
 const partial = { v: 1, area: 'village', x: 5, y: 6, mounted: false, q: { memories: 2, side: { flowers: 'done' } } };
 const c = game();
@@ -109,6 +132,7 @@ applySave(c, partial);
 check(c.q.story && c.q.story.stage === 0, 'old save without story -> stage 0 default (no Memory floor)');
 check(c.q.memories === 2 && c.q.side.flowers === 'done', 'old save keeps collection + quest state');
 check(c.q.story.choices && Object.keys(c.q.story.choices).length === 0, 'old save gets an empty choices map');
+check(c.q.story.fragments && Object.keys(c.q.story.fragments).length === 0, 'old save gets an empty fragments map');
 
 globalThis.localStorage = realLS;
 

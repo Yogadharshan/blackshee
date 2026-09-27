@@ -82,6 +82,7 @@ export function applySave(game, data) {
         ...base.story,
         ...(data.q.story || {}),
         choices: { ...base.story.choices, ...((data.q.story && data.q.story.choices) || {}) },
+        fragments: { ...base.story.fragments, ...((data.q.story && data.q.story.fragments) || {}) },
       },
     };
     if (data.area) game.world.setArea(data.area);

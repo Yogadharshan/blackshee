@@ -184,6 +184,37 @@ export function memorySprite(item) {
   return s.memories[item];
 }
 
+// ---- Phase 6C: the enlarged Photograph (16x12, x6) -------------------
+// Shown during the twin reveal so the player can SEE what the dialogue
+// describes: a row of sheep, a cropped dark shape at the frame edge, and a
+// small bell, ribbon and flower arranged along the bottom-left edge.
+//  W frame · s sky · g grass · S white wool · e eye · k dark wool
+//  b bell · r ribbon · f flower
+const PHOTO_GRID = [
+  'WWWWWWWWWWWWWWWW',
+  'WssssssssssssssW',
+  'WssssssssssssssW',
+  'WsssssssssssskkW',
+  'WsSSeSsSSeSsskkW',
+  'WsSSSSsSSSSsskkW',
+  'WggggggggggggkkW',
+  'WggggggggggggkkW',
+  'WggggggggggggkkW',
+  'WfbggggggggggkkW',
+  'WtgrrggggggggkkW',
+  'WWWWWWWWWWWWWWWW',
+];
+const PAL_PHOTO_BIG = {
+  W: '#efe9d6', s: '#b8d4e8', g: '#92b26e', S: '#f5f2e6', e: '#7d7160',
+  k: '#2b2b33', b: '#e8b83e', r: '#d95b70', f: '#e86a92', t: '#4e7d36',
+};
+
+export function photographSprite() {
+  const s = sprites();
+  if (!s.baaPhoto) s.baaPhoto = px(PHOTO_GRID, PAL_PHOTO_BIG, 6);
+  return s.baaPhoto;
+}
+
 // ---- Small env pixels (8x8) ----------------------------------------
 export function envSprites() {
   const s = sprites();

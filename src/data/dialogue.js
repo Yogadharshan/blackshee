@@ -105,14 +105,122 @@ export const DIALOGUE = {
     ['', 'You received the Red Flower.'],
     ['', 'It smells like a garden someone else kept.'],
   ],
-  flower_pickup: ['A flower. It does not know it was picked yet.'],
-  rock_pickup: ['A rock. A very important rock. Extremely. Legally.'],
+  // --- Distributed NPC recollections of Baa (Phase 3) --------------------
+  // One fragment per NPC (see data/npc_fragments.js): object, habit, helped,
+  // place, incorrect. Ordinary, unnamed, no family. The player assembles Baa.
+  frag_object: [
+    ['Rock Sheep', '...Wait. Before the rock. Someone gave me a thing once.'],
+    ['Rock Sheep', 'A little carved bird. Lopsided. They seemed proud of it.'],
+    ['Rock Sheep', 'I do not remember the face. I remember the bird was terrible.'],
+  ],
+  frag_habit: [
+    ['Meadow Sheep', 'Someone used to stand at that fence every evening. Just watching.'],
+    ['Meadow Sheep', 'We never spoke. They seemed busy being curious at nothing.'],
+    ['Meadow Sheep', 'Sometimes the low light made one shape look like two.'],
+    ['Meadow Sheep', 'Probably just the light. I never asked.'],
+  ],
+  frag_helped: [
+    ['Lonely Sheep', 'Someone sat with me once. When everyone else walked around me.'],
+    ['Lonely Sheep', 'They did not say anything. They just stayed until it was better.'],
+    ['Lonely Sheep', 'I cannot remember their face. Only that I stopped feeling see-through.'],
+  ],
+  frag_place: [
+    ['Farm Sheep', 'This fence kept falling down. Nobody ever fixed it.'],
+    ['Farm Sheep', 'Then one morning it was up. No note. No one taking credit.'],
+    ['Farm Sheep', 'I have always assumed it was the wind. The wind here is very capable.'],
+  ],
+  frag_incorrect: [
+    ['Suspicious Sheep', 'That fence? They fixed it. I watched them do it myself.'],
+    ['Suspicious Sheep', 'It was a Tuesday. Or winter. One of those.'],
+    ['Suspicious Sheep', 'Do not let anyone tell you it was the wind. That is a lie sheep tell.'],
+  ],
+  flower_pickup: [['', 'A flower. It does not know it was picked yet.']],
+  rock_pickup: [['', 'A rock. A very important rock. Extremely. Legally.']],
   gate_sealed: ['A strange force holds the shrine sealed. Something is missing.'],
   gate_open: ['The seal is gone. The shrine is open.'],
   shrine_altar: [
     ['', 'The five Memories rest at the altar. The shrine remembers them all.'],
     ['', 'A voice, softer than wool: "You are different. You always were.'] ,
     ['', '"That was never something to fix. It was something to find."'],
+  ],
+  // Phase 4 — the Forgotten Baa. Recognition before explanation; the five
+  // Memories are the anchors, the Photograph carries the weight, the family
+  // line stays minimal. PROVISIONAL wording (handout §10 "exact wording is not
+  // locked"): the recognition beats come from the handout, adapted to singular
+  // so no twin/plural clue is introduced here. No stage-5/twin beat fires.
+  baa_encounter: [
+    ['', 'The five Memories rest at the altar, and the air goes very still.'],
+    ['THE FORGOTTEN BAA', 'WHO ARE YOU?'],
+    ['', 'The voice is old and tired. It does not sound like a monster.'],
+    ['THE FORGOTTEN BAA', 'The bell...'],
+    ['THE FORGOTTEN BAA', 'The flower...'],
+    ['THE FORGOTTEN BAA', 'The toy...'],
+    ['THE FORGOTTEN BAA', 'The ribbon.'],
+    ['THE FORGOTTEN BAA', '...The photograph.'],
+    ['', 'The half-out-of-frame sheep. You have carried that photograph a while now.'],
+    ['', 'The voice goes quiet for a long time.'],
+    ['THE FORGOTTEN BAA', '...You came back.'],
+    ['', 'You do not understand yet. Something in your chest does.'],
+    ['THE FORGOTTEN BAA', '...your wool.'],
+    ['THE FORGOTTEN BAA', 'My grandchild.'],
+    ['', 'For a while, nothing is said. The shrine lets it stay quiet.'],
+  ],
+  // Phase 5 — the quiet aftermath. ONE piece of evidence (a cropped detail in
+  // the Photograph the player already carries), no explanation. PROVISIONAL
+  // wording: it deliberately says nothing about who/where/why, and never uses
+  // the words "twin", "brother", "sister" or "another Black Sheep" directly.
+  // Fired only after the recognition beat above is complete.
+  baa_reveal: [
+    ['THE FORGOTTEN BAA', '...Wait.'],
+    ['', 'The voice has stopped looking at you. It is looking past you.'],
+    ['', 'You lift the photograph again. At the very edge, half cropped away,'],
+    ['', 'there is a second shape. Dark wool, like yours.'],
+    ['', 'You have looked at this photograph many times. You never saw it.'],
+    ['', 'The voice says nothing more. Whatever it knows, it keeps.'],
+  ],
+  // --- Phase 6 immediate consequences (one per option) -------------------
+  // Small, authored, equal in reward, never good/evil. PROVISIONAL wording:
+  // the design lock supplies intent, not final prose (design lock §15).
+  choice_flowers_careful: [
+    ['Baaabara', 'You carried them the long way. You set them down like they mattered.'],
+    ['Baaabara', '...I noticed. I notice everything. It is my whole personality.'],
+  ],
+  choice_flowers_efficient: [
+    ['Baaabara', 'Efficient. Three flowers. Delivered.'],
+    ['Baaabara', 'They are still the right color, so I will allow it.'],
+  ],
+  choice_friend_search: [
+    ['Farm Sheep', 'Thank you. Really. Nobody else even looked up.'],
+    ['Farm Sheep', 'Bo is going to be so embarrassed. Good.'],
+  ],
+  choice_friend_question: [
+    ['Farm Sheep', '...Huh.'],
+    ['Farm Sheep', 'I had not thought about it like that. Give me a minute.'],
+  ],
+  choice_rock_respect: [
+    ['Rock Sheep', 'Exactly.'],
+  ],
+  choice_rock_practical: [
+    ['Rock Sheep', 'Yes. It is a rock.'],
+  ],
+  choice_memory_investigate: [
+    ['', 'The corner is worn differently from the rest. Rubbed thin, the way a thumb keeps returning.'],
+  ],
+  choice_memory_move_on: [
+    ['', 'The photograph goes back into your things.'],
+  ],
+  // --- Phase 6 later callbacks (two choices, design lock §9) -------------
+  farm_callback_search: [
+    ['Farm Sheep', 'You really do not give up easily, do you?'],
+  ],
+  farm_callback_question: [
+    ['Farm Sheep', 'I have been thinking about what you said. About Bo.'],
+  ],
+  rock_callback_respect: [
+    ['Rock Sheep', 'You came back for it. Because I said it mattered.'],
+  ],
+  rock_callback_practical: [
+    ['Rock Sheep', 'You brought it back anyway. For a rock.'],
   ],
   ending: [
     ['', 'The black sheep stands before the shrine, finally not alone with being different.'],

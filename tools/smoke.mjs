@@ -31,7 +31,7 @@ const teleport = (area, x, y) => {
 // chooser that opened (the player would press Escape).
 const finishDialogue = () => {
   let guard = 0;
-  while (g.dialogue.active && guard < 20) {
+  while (g.dialogue.active && guard < 40) {
     g.advance = true;
     g.update(1 / 60);
     guard++;

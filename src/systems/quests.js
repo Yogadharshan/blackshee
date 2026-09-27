@@ -1,6 +1,6 @@
 import { DIALOGUE } from '../data/dialogue.js';
 import { SIDEQUESTS } from '../data/quests.js';
-import { advanceStory } from './story.js';
+import { advanceStory, choice } from './story.js';
 import { MEMORY_BEATS } from '../data/story_beats.js';
 
 // All progress lives here. NPCs and hotspots read flags from this.
@@ -9,6 +9,10 @@ export function createQuestState() {
     memories: 0,
     required: 5,
     collected: {},       // memory ids picked up
+    // Per-flower pick-up state (ids flw1/flw2/flw3). Presentation-driven: lets
+    // the world stop drawing a flower once it is picked. Additive default so
+    // old saves merge in cleanly via applySave (SAVE_VERSION unchanged).
+    flowersPicked: {},
     flowers: 0,          // flowers handed... no: flowers carried
     flowersGiven: false,
     hasRock: false,
@@ -24,7 +28,8 @@ export function createQuestState() {
     // Narrative understanding, kept separate from collection progress
     // (memories/collected). Advanced only by named story beats via
     // systems/story.js; never derived from the Memory count.
-    story: { stage: 0, twinRevealed: false, choices: {} },
+    // fragments: distinct NPC recollections heard (systems/story.js).
+    story: { stage: 0, twinRevealed: false, choices: {}, fragments: {} },
   };
 }
 
@@ -55,19 +60,32 @@ export function talkFor(npcId, q) {
       if (q.side.flowers === 'active') return DIALOGUE.baabara_need;
       q.side.flowers = 'active';
       return DIALOGUE.baabara;
-    case 'rockSheep':
+    case 'rockSheep': {
+      // Phase 6 callback: the hand-in is the "later" after the offer-time choice.
+      const rockPick = choice({ q }, 'rock');
       if (q.rockGiven) return DIALOGUE.rock_after;
       if (q.hasRock) {
         q.rockGiven = true;
         q.side.rock = 'done';
+        if (rockPick === 'respect') return DIALOGUE.rock_after.concat(DIALOGUE.rock_callback_respect);
+        if (rockPick === 'practical') return DIALOGUE.rock_after.concat(DIALOGUE.rock_callback_practical);
         return DIALOGUE.rock_after;
       }
       q.side.rock = 'active';
       return DIALOGUE.rock;
-    case 'farmSheep':
-      if (q.boFound) { q.side.friend = 'done'; return DIALOGUE.farm_after; }
+    }
+    case 'farmSheep': {
+      // Phase 6 callback: finding Bo is the "later" after the offer-time choice.
+      const friendPick = choice({ q }, 'friend');
+      if (q.boFound) {
+        q.side.friend = 'done';
+        if (friendPick === 'search') return DIALOGUE.farm_after.concat(DIALOGUE.farm_callback_search);
+        if (friendPick === 'question') return DIALOGUE.farm_after.concat(DIALOGUE.farm_callback_question);
+        return DIALOGUE.farm_after;
+      }
       q.side.friend = 'active';
       return DIALOGUE.farm;
+    }
     case 'suspicious':
       return q.secret.discovered ? DIALOGUE.suspicious : DIALOGUE.suspicious_secret;
     case 'sixth': {

@@ -39,6 +39,42 @@ export function twinRevealed(game) {
   return !!(s && s.twinRevealed);
 }
 
+// Distinct authored NPC recollections (data/npc_fragments.js) the player has
+// heard. These are counted, not ordered: the stage rises as understanding
+// accumulates, so free exploration order can never lock the player out.
+export function hasFragment(game, id) {
+  const s = store(game);
+  return !!(s && s.fragments && id && s.fragments[id]);
+}
+
+export function fragmentCount(game) {
+  const s = store(game);
+  return s && s.fragments ? Object.keys(s.fragments).length : 0;
+}
+
+// How many distinct fragments map to each understanding beat. Order-independent
+// by design (handout §23): the accumulated recollections, not a collection path.
+const FRAGMENT_STAGE_LADDER = Object.freeze([
+  Object.freeze({ at: 1, beat: 'STAGE_2_FRAGMENTS' }),
+  Object.freeze({ at: 3, beat: 'STAGE_3_BAA_LIFE' }),
+  Object.freeze({ at: 5, beat: 'STAGE_4_FORGOTTEN' }),
+]);
+
+// Record a heard fragment once and raise the stage from accumulated count.
+// Returns false when the fragment was already known (safe to re-talk).
+export function recordFragment(game, id) {
+  const s = store(game);
+  if (!s || !id) return false;
+  if (!s.fragments || typeof s.fragments !== 'object') s.fragments = {};
+  if (s.fragments[id]) return false;
+  s.fragments[id] = true;
+  const n = Object.keys(s.fragments).length;
+  for (const step of FRAGMENT_STAGE_LADDER) {
+    if (n >= step.at) advanceStory(game, step.beat);
+  }
+  return true;
+}
+
 // Explicit named choices: q.story.choices[choiceId] = optionId, last write wins.
 // No history, no meters. Authored choices are added in a later phase.
 export function choose(game, choiceId, optionId) {

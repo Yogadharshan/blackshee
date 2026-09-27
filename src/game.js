@@ -2,15 +2,18 @@ import { World } from './systems/world.js';
 import { Player } from './systems/player.js';
 import { Dialogue } from './systems/dialogue.js';
 import { createQuestState, talkFor, rewardFor } from './systems/quests.js';
-import { handleHotspot } from './systems/collectibles.js';
+import { handleHotspot, dialogLines } from './systems/collectibles.js';
+import { hasFragment, recordFragment, choose, hasChoice } from './systems/story.js';
+import { fragmentFor } from './data/npc_fragments.js';
+import { CHOICES, isAllowedOption } from './data/choices.js';
 import { nearestInteractable } from './systems/interactions.js';
 import { drawHud } from './ui/hud.js';
-import { drawDialogueBox } from './ui/dialogue_box.js';
+import { drawDialogueBox, drawChoiceBox } from './ui/dialogue_box.js';
 import { drawEnding } from './ui/ending.js';
 import { TILE, START } from './data/world.js';
 import { DIALOGUE } from './data/dialogue.js';
 import { sfx, ensureAudio } from './systems/sfx.js';
-import { sprites, spr, sheepPose, memorySprite, envSprites, rockSprite } from './systems/sprites.js';
+import { sprites, spr, sheepPose, memorySprite, envSprites, rockSprite, photographSprite } from './systems/sprites.js';
 import { net } from './systems/net.js';
 import { PERSONAS, INTENT_LABELS } from './data/npc_personas.js';
 import { buildContext } from './systems/npc_context.js';
@@ -61,6 +64,11 @@ export class Game {
     this.sendTimer = 0;
     this.secretPoke = false;
     this.revealShown = false;
+    // Phase 6C staging for the Baa sequence (encounter -> reveal). Pure
+    // presentation: transient, never persisted, no input or state change.
+    this.stageBaa = false;     // the Baa sequence is actively staged (dim + body)
+    this.baaStageAt = 0;       // performance.now() when staging began (fade-in)
+    this.baaRevealAt = -1;     // line index inside the sequence where the reveal begins
     this.roomUI = { active: false, code: '', joined: false };
     this.roomCode = '';
     // Co-op connection health (net.js reports connecting/open/reconnecting).
@@ -143,7 +151,7 @@ export class Game {
         }
         if (e.code === 'KeyE' || e.code === 'Enter' || e.code === 'Space') {
           e.preventDefault();
-          if (!this.keys[e.code]) this.askQuestion();
+          if (!e.repeat) this.askQuestion();
           this.keys[e.code] = true;
           return;
         }
@@ -158,8 +166,34 @@ export class Game {
         return;
       }
 
+      // Phase 6 choice owns navigation; confirm (E/Enter/Space) falls through to
+      // the normal advance path so update() picks the highlighted reply.
+      if (this.dialogue.choosing) {
+        if (e.code === 'ArrowUp' || e.code === 'KeyW') {
+          e.preventDefault();
+          if (!e.repeat) this.dialogue.moveChoice(-1);
+          this.keys[e.code] = true;
+          return;
+        }
+        if (e.code === 'ArrowDown' || e.code === 'KeyS') {
+          e.preventDefault();
+          if (!e.repeat) this.dialogue.moveChoice(1);
+          this.keys[e.code] = true;
+          return;
+        }
+        const n = /^[12]$/.test(e.key) ? Number(e.key) : 0;
+        if (n) {
+          e.preventDefault();
+          this.dialogue.pickChoice(n - 1);
+          return;
+        }
+      }
+
       if (e.code === 'KeyE' || e.code === 'Enter' || e.code === 'Space') {
-        if (!this.keys[e.code]) this.advance = true;
+        // Edge-fires on the physical press (OS auto-repeat sets repeat=true), so
+        // E keeps working even if a keyup was missed (blur/swallow) — a stale
+        // key in this.keys must never dead-lock dialogue advancement.
+        if (!e.repeat) this.advance = true;
       }
       if (e.code === 'Tab') {
         e.preventDefault();
@@ -171,10 +205,43 @@ export class Game {
     window.addEventListener('keyup', (e) => {
       this.keys[e.code] = false;
     });
+    // A missed keyup (tab switch, window blur) must never leave movement or
+    // interaction keys stuck "held". Clear everything on blur.
+    window.addEventListener('blur', () => {
+      this.keys = {};
+    });
   }
 
   say(pairs, onDone) {
     this.dialogue.start(pairs, onDone);
+  }
+
+  // Phase 6: which authored choice (if any) this NPC offers right now. One per
+  // NPC, offered once, only after that NPC's own authored dialogue has played and
+  // only once its quest moment has actually happened. No scores, no history.
+  pendingChoiceFor(npcId) {
+    const map = { baabara: 'flowers', farmSheep: 'friend', rockSheep: 'rock' };
+    const id = map[npcId];
+    if (!id || hasChoice(this, id)) return null;
+    const q = this.q;
+    const ready = id === 'flowers'
+      ? q.flowersGiven
+      : id === 'friend'
+        ? q.side.friend !== 'idle'
+        : q.side.rock !== 'idle';
+    return ready ? id : null;
+  }
+
+  // Freeze the world on a two-reply prompt; on pick, record the choice through
+  // story.choose and play the authored consequence, then continue with `then`.
+  offerChoice(choiceId, then) {
+    const c = CHOICES[choiceId];
+    if (!c || hasChoice(this, choiceId)) { if (then) then(); return; }
+    this.dialogue.startChoice(c.prompt, c.options, (optionId) => {
+      // Only the authored option ids are ever stored (last-write-wins).
+      if (isAllowedOption(choiceId, optionId)) choose(this, choiceId, optionId);
+      this.say(dialogLines(c.lines[optionId]), then);
+    });
   }
 
   // After an NPC's opening dialogue, offer only the questions that NPC supports
@@ -346,13 +413,17 @@ export class Game {
     return Math.abs(tx - 5) <= 1 && Math.abs(ty - 13) <= 1;
   }
 
-  // One-time world beat when the 5th Memory lands.
+  // One-time world beat when the 5th Memory lands. Returns true when it just
+  // opened the seal line, so callers can defer follow-up UI until it is
+  // dismissed (the guided ask menu must never sit on top of an open dialogue).
   maybeAnnounceSeal() {
     if (this.q.memories >= this.q.required && !this.q.sealAnnounced) {
       this.q.sealAnnounced = true;
       sfx.open();
       this.say([['', 'A low hum fills the world. The seal on the Old Shrine is gone.']]);
+      return true;
     }
+    return false;
   }
 
   update(dt) {
@@ -457,12 +528,39 @@ export class Game {
     if (pressed && this.near) {
       if (this.near.type === 'npc') {
         const npc = this.near.ref;
-        this.say(talkFor(npc.id, this.q), () => {
-          rewardFor(npc.id, this);
-          this.maybeAnnounceSeal();
-          // Opening stays authored; guided questions are the optional extra.
-          this.openGuided(npc.id, npc.name);
-          this.persist();
+        // Phase 3: weave in this NPC's one authored Baa recollection the first
+        // time the player talks to them. One fragment per NPC; recorded on
+        // close so the stage reflects what the player actually heard.
+        const frag = fragmentFor(npc.id);
+        const pending = frag && !hasFragment(this, frag.id) ? frag : null;
+        let lines = talkFor(npc.id, this.q);
+        if (pending) lines = lines.concat(dialogLines(pending.dialogue));
+        this.say(lines, () => {
+          if (pending) recordFragment(this, pending.id);
+          const finalize = () => {
+            const was = this.q.collected.flower;
+            rewardFor(npc.id, this);
+            if (!was && this.q.collected.flower) {
+              sfx.pickup();
+              this.rewardFx = { at: performance.now() };
+            }
+            // The seal line and the guided ask menu must never be open at once:
+            // if the seal was just announced (a dialogue is up), defer the
+            // questions until the player dismisses it with E — otherwise E would
+            // be swallowed by the invisible ask menu and the seal never closes.
+            if (this.maybeAnnounceSeal()) {
+              this.dialogue.onDone = () => this.openGuided(npc.id, npc.name);
+            } else {
+              // Opening stays authored; guided questions are the optional extra.
+              this.openGuided(npc.id, npc.name);
+            }
+            this.persist();
+          };
+          // Phase 6: this NPC's authored choice (if any) plays before the quest
+          // reward and the guided-questions menu. Choices never gate progress.
+          const cid = this.pendingChoiceFor(npc.id);
+          if (cid) this.offerChoice(cid, finalize);
+          else finalize();
         });
       } else {
         const wasActive = this.dialogue.active;
@@ -498,6 +596,9 @@ export class Game {
       this.drawHotspot(ctx, hs);
     }
 
+    // First-Memory pickup pulse (transient; nothing drawn if never set).
+    this.drawMemoryBurst(ctx);
+
     // NPCs.
     for (const n of this.world.npcs) {
       drawSheep(ctx, n.px + 20, n.py + 20, false);
@@ -524,11 +625,25 @@ export class Game {
 
     this.player.draw(ctx, this.mounted);
 
+    // Red Flower reward: the granted memory floats above the player briefly.
+    this.drawRewardFx(ctx);
+
+    // Phase 6C: staged presentation for the Baa sequence — dim the world, give
+    // the voice a body, and show the Photograph during the reveal.
+    if (this.stageBaa) this.drawBaaStage(ctx);
+
     if (this.mode === 'title') this.drawTitle(ctx);
     else {
       drawHud(ctx, this);
-      if (this.dialogue.active) drawDialogueBox(ctx, this.dialogue);
-      else if (this.ask.active) drawAskMenu(ctx, this.ask, this.ask.npcName);
+      if (this.dialogue.active) {
+        if (this.dialogue.choosing) drawChoiceBox(ctx, this.dialogue.choice);
+        else {
+          drawDialogueBox(ctx, this.dialogue, this.stageBaa);
+          // The Photograph becomes a real object the first time its Memory
+          // dialogue is read: shown above the box, undimmed, no staging.
+          if (this.dialogue.lines === DIALOGUE.memory_photo) this.drawPhotoCard(ctx);
+        }
+      } else if (this.ask.active) drawAskMenu(ctx, this.ask, this.ask.npcName);
       if (this.saveFlash > 0) this.drawSaveBlip(ctx);
       if (this.netFlash > 0) this.drawNetBlip(ctx);
     }
@@ -575,6 +690,9 @@ export class Game {
     const px = hs.px + 20;
     const py = hs.py + 20;
     if (hs.kind === 'memory') {
+      // Picked up memories leave their tile: the item is collected, so the
+      // world stops showing it (interaction stays: handleHotspot no-ops).
+      if (this.q.collected[hs.item]) return;
       const img = memorySprite(hs.item);
       const bob = Math.round(Math.sin(t / 320 + hs.x * 2) * 2);
       ctx.fillStyle = 'rgba(30,20,10,0.22)';
@@ -585,9 +703,13 @@ export class Game {
       spr(ctx, img, px - img.width / 2, py - img.height / 2 + bob - 4);
       sparkle(ctx, px, py - 16 + bob, t);
     } else if (hs.kind === 'flower') {
+      // A picked flower is gone from the world (per-flower state), and once
+      // all three are delivered no flower spot remains.
+      if (this.q.flowersPicked[hs.id] || this.q.flowersGiven) return;
       const bob = Math.round(Math.sin(t / 400 + hs.x) * 2);
       envFlower(ctx, px, py + bob, (hs.x + hs.y) % 3);
     } else if (hs.kind === 'rock') {
+      if (this.q.hasRock) return;
       spr(ctx, rockSprite((hs.x + hs.y) % 2), px - 12, py - 12);
     } else if (hs.kind === 'altar') {
       const pulse = 1 + Math.sin(t / 260) * 0.25;
@@ -602,6 +724,22 @@ export class Game {
       ctx.arc(px, py - 10, 4 + pulse * 2, 0, Math.PI * 2);
       ctx.fill();
       sparkle(ctx, px, py - 20, t);
+      // With all five Memories placed, their icons rest at the altar's base.
+      // Presentation only: reads q, mutates nothing. Drawn under the overlay
+      // layers, so a staged Baa silhouette may cover them in the ending — fine.
+      if (this.q.memories >= this.q.required) {
+        const icons = ['bell', 'flower', 'toy', 'ribbon', 'photo'];
+        const pitch = 26;
+        const rowY = py + 28;
+        ctx.fillStyle = 'rgba(30,20,10,0.22)';
+        ctx.fillRect(Math.round(px - (icons.length * pitch) / 2), rowY - 2, icons.length * pitch, 5);
+        let cx = px - ((icons.length - 1) * pitch) / 2;
+        for (const item of icons) {
+          const img = memorySprite(item);
+          if (img) spr(ctx, img, Math.round(cx - img.width / 2), Math.round(rowY - img.height / 2));
+          cx += pitch;
+        }
+      }
     } else if (hs.kind === 'bo') {
       drawSheep(ctx, px, py, false);
     } else if (hs.kind === 'secret') {
@@ -613,6 +751,109 @@ export class Game {
         sparkle(ctx, px + 8, py - 6, t + 200);
       }
     }
+  }
+
+  // First-Memory pickup pulse: two expanding gold rings at the collection
+  // point, fading out over ~650 ms. Transient presentation only — a Game that
+  // never had memoryBurst set draws nothing extra (stub tests unaffected).
+  drawMemoryBurst(ctx) {
+    const b = this.memoryBurst;
+    if (!b) return;
+    const age = performance.now() - b.at;
+    if (age >= 650) return;
+    const k = age / 650;
+    ctx.save();
+    ctx.strokeStyle = '#f2c14e';
+    ctx.lineWidth = 2;
+    for (let i = 0; i < 2; i++) {
+      const size = 14 + i * 16 + k * 46;
+      ctx.globalAlpha = Math.max(0, 1 - k) * 0.9;
+      ctx.strokeRect(Math.round(b.px - size / 2), Math.round(b.py - size / 2), size, size);
+    }
+    ctx.restore();
+  }
+
+  // Red Flower reward: the granted Memory sprite floats above the player with
+  // a gentle bob as it fades, ~1.1 s after the reward was granted. Transient.
+  drawRewardFx(ctx) {
+    const rx = this.rewardFx;
+    if (!rx) return;
+    const age = performance.now() - rx.at;
+    if (age >= 1100) return;
+    const img = memorySprite('flower');
+    if (!img) return;
+    const k = age / 1100;
+    const bob = Math.round(Math.sin(age / 120) * 5);
+    const cx = Math.round(this.player.x + 13);
+    const cy = Math.round(this.player.y + 15 - 42 + bob);
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, 1 - k);
+    spr(ctx, img, Math.round(cx - img.width / 2), Math.round(cy - img.height / 2));
+    ctx.restore();
+  }
+
+  // The Photograph as a real object: shown at mid-screen above the dialogue
+  // box while the memory_photo lines are on screen. No dim, no staging.
+  drawPhotoCard(ctx) {
+    const img = photographSprite();
+    if (!img) return;
+    spr(ctx, img, Math.round(480 - img.width / 2), Math.round(295 - img.height / 2));
+  }
+
+  // Phase 6C: one staged pass over the world while the Baa sequence plays.
+  // Presentation-only: dims the view, draws the voice as a dark sheep at the
+  // altar, and during the reveal shows the enlarged Photograph the dialogue is
+  // describing. No state, no input change, nothing persisted.
+  drawBaaStage(ctx) {
+    const t = performance.now();
+    const k = Math.min(1, (t - this.baaStageAt) / 450);
+    if (k <= 0) return;
+
+    // subtle dim + vignette so the beat reads differently from NPC dialogue.
+    ctx.fillStyle = `rgba(10,12,16,${(0.4 * k).toFixed(3)})`;
+    ctx.fillRect(0, 0, 960, 640);
+    ctx.fillStyle = `rgba(6,8,12,${(0.28 * k).toFixed(3)})`;
+    ctx.fillRect(0, 0, 960, 46);
+    ctx.fillRect(0, 594, 960, 46);
+    ctx.fillRect(0, 0, 46, 640);
+    ctx.fillRect(914, 0, 46, 640);
+
+    // Baa: a still dark sheep standing at the altar (reused sheepBlack sprite,
+    // no new character system). Front view, no bob — a presence, not a wanderer.
+    const altar = this.world.hotspots.find((h) => h.id === 'altar');
+    const img = sprites().sheepBlack[0];
+    if (img && altar) {
+      const cx = altar.px + 20;
+      const cy = altar.py + 20;
+      ctx.fillStyle = 'rgba(20,14,8,0.35)';
+      ctx.fillRect(cx - 14, cy + 12, 28, 5);
+      ctx.globalAlpha = Math.max(k, 0.35);
+      spr(ctx, img, Math.round(cx - img.width / 2), Math.round(cy - img.height / 2));
+      ctx.globalAlpha = 1;
+    }
+
+    // The Photograph, visible for the first time, during the reveal beats.
+    if (this.baaRevealAt >= 0 && this.dialogue.active && this.dialogue.i >= this.baaRevealAt) {
+      this.drawBaaPhotograph(ctx, k);
+    }
+  }
+
+  // The enlarged Photograph: row of sheep, cropped dark shape at the edge, and
+  // the small bell / ribbon / flower the memory beat already described.
+  drawBaaPhotograph(ctx, k) {
+    const img = photographSprite();
+    if (!img) return;
+    const cx = 480;
+    const cy = 240;
+    ctx.fillStyle = `rgba(20,15,8,${(0.35 * k).toFixed(3)})`;
+    ctx.fillRect(cx - img.width / 2 - 4, cy - img.height / 2 + 34, img.width + 8, 12);
+    ctx.globalAlpha = k;
+    spr(ctx, img, Math.round(cx - img.width / 2), Math.round(cy - img.height / 2));
+    ctx.globalAlpha = 1;
+    // the worn corner the text keeps coming back to
+    ctx.fillStyle = 'rgba(120,108,84,0.55)';
+    ctx.fillRect(Math.round(cx - img.width / 2), Math.round(cy - img.height / 2), 12, 7);
+    ctx.fillRect(Math.round(cx - img.width / 2), Math.round(cy - img.height / 2), 6, 12);
   }
 
   drawTitle(ctx) {
