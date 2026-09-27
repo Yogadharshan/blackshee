@@ -284,9 +284,9 @@ export class Game {
         }
       }
 
-      // Remote co-op players (white sheep + name).
+      // Remote co-op players (black sheep, like you).
       for (const o of this.others.values()) {
-        drawSheep(ctx, o.x + 13, o.y + 15, false);
+        drawSheep(ctx, o.x + 13, o.y + 15, true);
         if (o.mounted) {
           ctx.fillStyle = '#c9b458';
           ctx.font = 'bold 10px "Courier New", monospace';

@@ -87,7 +87,7 @@ export function renderFP(ctx, game, others) {
   ];
   for (const o of others.values()) {
     if (o.id === game.myId) continue;
-    actors.push({ kind: 'npc', ax: o.x / TILE + 0.5, ay: o.y / TILE + 0.5 });
+    actors.push({ kind: 'player', ax: o.x / TILE + 0.5, ay: o.y / TILE + 0.5 });
   }
   drawBillboards(g, actors, posX, posY, dirX, dirY, planeX, planeY, zBuffer);
 
@@ -132,7 +132,8 @@ function drawBillboards(g, actors, posX, posY, dirX, dirY, planeX, planeY, zBuff
       g.fillStyle = '#fff2c9';
       g.fillRect(screenX - 2, H / 2 - 2 + bob, 4, 4);
     } else {
-      const sheep = sprites().sheepWhite[0];
+      // NPCs are white sheep; the other co-op player is black, like you.
+      const sheep = (a.kind === 'player' ? sprites().sheepBlack : sprites().sheepWhite)[0];
       if (sheep) {
         const sw = Math.round(size * 1.1);
         const sh = Math.round(size * 1.1);

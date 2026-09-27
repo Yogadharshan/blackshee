@@ -62,13 +62,35 @@ try {
   const A = await evalIn(a, probe);
   const B = await evalIn(b, probe);
 
+  // Move B away from A, then sample how B is actually drawn in A's canvas.
+  await evalIn(b, `(() => { window.dispatchEvent(new KeyboardEvent('keydown',{code:'ArrowRight',key:'ArrowRight'})); return true; })()`);
+  await sleep(900);
+  await evalIn(b, `(() => { window.dispatchEvent(new KeyboardEvent('keyup',{code:'ArrowRight',key:'ArrowRight'})); return true; })()`);
+  await sleep(400);
+  const colorA = await evalIn(a, `(() => {
+    const g = window.__game;
+    const o = [...g.others.values()][0];
+    if (!o) return null;
+    const c = document.getElementById('game').getContext('2d');
+    const cx = Math.round(o.x + 13), cy = Math.round(o.y + 15);
+    const pts = [[0,-10],[-8,-6],[8,-6],[0,-4],[0,0]];
+    let sum = 0, n = 0;
+    for (const [dx,dy] of pts) {
+      const d = c.getImageData(cx+dx, cy+dy, 1, 1).data;
+      sum += 0.299*d[0] + 0.587*d[1] + 0.114*d[2]; n++;
+    }
+    return { avgLum: Math.round(sum/n), at: {x:cx,y:cy} };
+  })()`);
+
   console.log('room:', ROOM);
   console.log('playerA:', JSON.stringify(A));
   console.log('playerB:', JSON.stringify(B));
+  console.log('remote sheep pixels in A:', JSON.stringify(colorA), '(black ~60, white ~200)');
+  const blackOk = colorA && colorA.avgLum < 120;
   const ok = A.others === 1 && B.others === 1 && A.room === ROOM && B.room === ROOM;
   console.log(ok ? 'CO-OP RENDER PASS' : 'CO-OP RENDER FAIL');
-  console.log('(' + (Date.now() - started) + 'ms)');
-  process.exitCode = ok ? 0 : 1;
+  console.log(blackOk ? 'REMOTE SHEEP IS BLACK PASS' : 'REMOTE SHEEP IS BLACK FAIL');
+  process.exitCode = (ok && blackOk) ? 0 : 1;
 } catch (err) {
   console.error('VERIFY ERROR:', err.message);
   process.exitCode = 1;
