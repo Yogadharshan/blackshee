@@ -17,6 +17,7 @@ import { PERSONAS, INTENT_LABELS } from './data/npc_personas.js';
 import { buildContext } from './systems/npc_context.js';
 import { npcDialogue } from './systems/npc_dialogue.js';
 import { drawAskMenu } from './ui/ask_menu.js';
+import { hasSave, loadSave, writeSave, clearSave, applySave } from './systems/save.js';
 
 export class Game {
   constructor(ctx) {
@@ -47,6 +48,9 @@ export class Game {
     this.revealShown = false;
     this.roomUI = { active: false, code: '', joined: false };
     this.roomCode = '';
+    // Single-player save: offer Continue on the title if one exists.
+    this.hasSave = hasSave();
+    this.saveTimer = 0;
     // Guided NPC conversation (Phase 2). Modal chooser shown after an NPC's
     // authored opening dialogue; wording only, never mutates game state.
     this.ask = { active: false, npcId: null, npcName: '', intents: [], index: 0, answer: null, answerIntent: null, thinking: false };
@@ -86,6 +90,14 @@ export class Game {
         this.roomUI.active = true;
         this.roomUI.code = this.roomCode;
         this.roomUI.joined = false;
+        return;
+      }
+
+      // Title: N discards the save and starts a fresh run.
+      if (e.code === 'KeyN' && !e.repeat && this.mode === 'title' && !this.roomUI.active && this.hasSave) {
+        e.preventDefault();
+        clearSave();
+        this.hasSave = false;
         return;
       }
 
@@ -202,6 +214,7 @@ export class Game {
     this.player.speed = this.mounted ? 300 : 170;
     this.player.moving = false;
     sfx.done();
+    writeSave(this);
   }
 
   // Broadcast our state to the relay. Safe to call at any time (no-op offline).
@@ -267,9 +280,16 @@ export class Game {
   }
 
   update(dt) {
-    // Title: Enter starts.
+    // Title: Enter starts. If a save exists, Enter continues it; N starts fresh.
     if (this.mode === 'title') {
-      if (this.advance) { this.mode = 'play'; this.advance = false; }
+      if (this.advance) {
+        this.advance = false;
+        if (this.hasSave) {
+          const data = loadSave();
+          if (data) applySave(this, data);
+        }
+        this.mode = 'play';
+      }
       this.advance = false;
       return;
     }
@@ -304,6 +324,10 @@ export class Game {
       this.sendState();
     }
 
+    // Persist single-player progress periodically (no-op without storage).
+    this.saveTimer += dt;
+    if (this.saveTimer > 2) { this.saveTimer = 0; writeSave(this); }
+
     // Movement (NPC bodies block like walls).
     const blockers = this.world.npcs.map((n) => ({ px: n.px, py: n.py, w: 32, h: 32 }));
     this.player.update(this.keys, this.world.tiles, blockers, dt);
@@ -335,6 +359,7 @@ export class Game {
         this.player.x = door.tx * TILE + 7;
         this.player.y = door.ty * TILE + 5;
         this.portalLockUntil = performance.now() / 1000 + 0.75;
+        writeSave(this);
       }
     }
 
@@ -354,6 +379,7 @@ export class Game {
           this.maybeAnnounceSeal();
           // Opening stays authored; guided questions are the optional extra.
           this.openGuided(npc.id, npc.name);
+          writeSave(this);
         });
       } else {
         const wasActive = this.dialogue.active;
@@ -363,9 +389,11 @@ export class Game {
           this.dialogue.onDone = () => {
             if (prev) prev();
             this.maybeAnnounceSeal();
+            writeSave(this);
           };
         } else if (!wasActive) {
           this.maybeAnnounceSeal();
+          writeSave(this);
         }
       }
     }
@@ -496,7 +524,11 @@ export class Game {
     ctx.fillText('Collect the five Memories. Help a few weird sheep.', 480, 470);
     ctx.fillStyle = '#f2e9c9';
     ctx.font = 'bold 15px "Courier New", monospace';
-    ctx.fillText('[Enter]  Solo  ·  [C]  Co-op room', 480, 508);
+    if (this.hasSave) {
+      ctx.fillText('[Enter] Continue  ·  [N] New game  ·  [C] Co-op', 480, 508);
+    } else {
+      ctx.fillText('[Enter]  Solo  ·  [C]  Co-op room', 480, 508);
+    }
     if (this.roomUI.active) drawRoomInput(ctx, this.roomUI);
     else if (this.roomUI.joined) {
       ctx.fillStyle = '#7fa66a';

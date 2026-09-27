@@ -24,6 +24,12 @@ Port comes from `$PORT` (set by Railway/Render/Fly) or defaults to 8080.
 - `Tab` — quest log
 - `M` — mount / dismount (after getting the Mount Sheep™)
 
+## Save
+
+Single-player progress autosaves to your browser (Memories, quests, position, mount).
+Reload and the title offers `[Enter] Continue`; press `[N]` for a new game. It's local only —
+nothing is stored server-side, and co-op state is not saved.
+
 ## The mission
 
 Main quest: **The Five Memories** (Old Bell, Red Flower, Wooden Toy, Old Ribbon, Photograph).
